@@ -80,6 +80,11 @@ export interface CreateAssistantFields {
    * The documents to include in the LLMs context.
    */
   documents?: ContextDocument[];
+  /**
+   * The graph ID to use for this assistant.
+   * @default "agent"
+   */
+  graphId?: string;
 }
 
 export type CreateCustomAssistantArgs = {
@@ -168,10 +173,10 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     setIsCreatingAssistant(true);
     try {
       const client = createClient();
-      const { tools, systemPrompt, name, documents, ...metadata } =
+      const { tools, systemPrompt, name, documents, graphId, ...metadata } =
         newAssistant;
       const createdAssistant = await client.assistants.create({
-        graphId: "agent",
+        graphId: graphId || "agent",
         name,
         metadata: {
           user_id: userId,
@@ -211,11 +216,11 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
     setIsEditingAssistant(true);
     try {
       const client = createClient();
-      const { tools, systemPrompt, name, documents, ...metadata } =
+      const { tools, systemPrompt, name, documents, graphId, ...metadata } =
         editedAssistant;
       const response = await client.assistants.update(assistantId, {
         name,
-        graphId: "agent",
+        graphId: graphId || "agent",
         metadata: {
           user_id: userId,
           ...metadata,
@@ -265,6 +270,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         name: "Default assistant",
         tools: undefined,
         systemPrompt: undefined,
+        graphId: "planning",
       },
       assistantId: assistantIdCookie,
       userId,
@@ -343,6 +349,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
           name: "Default assistant",
           description: "Your default assistant.",
           is_default: true,
+          graphId: "planning",
         },
         userId,
       });
@@ -388,6 +395,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
             (firstAssistant.config?.configurable?.systemPrompt as
               | string
               | undefined) || undefined,
+          graphId: firstAssistant.graph_id || "planning",
         },
         assistantId: firstAssistant.assistant_id,
         userId,

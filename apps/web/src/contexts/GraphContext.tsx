@@ -346,6 +346,7 @@ export function GraphProvider({ children }: { children: ReactNode }) {
     let followupMessageId = "";
     // The ID of the message containing the thinking content.
     let thinkingMessageId = "";
+    const PRD_GRAPH_NODES = ["ask_question", "update_prd", "generate_final_prd"];
 
     try {
       const workerService = new StreamWorkerService();
@@ -355,6 +356,7 @@ export function GraphProvider({ children }: { children: ReactNode }) {
         input,
         modelName: threadData.modelName,
         modelConfigs: threadData.modelConfigs,
+        userId: userData.user?.id,
       });
 
       // Variables to keep track of content specific to this stream
@@ -840,6 +842,25 @@ export function GraphProvider({ children }: { children: ReactNode }) {
 
               if (isFirstUpdate) {
                 isFirstUpdate = false;
+              }
+            }
+          }
+
+          if (event === "on_chain_end") {
+            if (PRD_GRAPH_NODES.includes(langgraphNode)) {
+              const output = extractStreamDataOutput(nodeOutput);
+              const outputMessages = (output?.messages ||
+                []) as BaseMessage[];
+              const outputArtifact = output?.artifact as ArtifactV3 | undefined;
+
+              if (outputMessages.length) {
+                setFirstTokenReceived(true);
+                setChatStarted(true);
+                setMessages((prev) => [...prev, ...outputMessages]);
+              }
+
+              if (outputArtifact) {
+                setArtifact(outputArtifact);
               }
             }
           }
