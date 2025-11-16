@@ -28,19 +28,19 @@ export interface CodeToolbarProps {
 const toolbarOptions: ToolbarOption[] = [
   {
     id: "addComments",
-    tooltip: "Add comments",
+    tooltip: "주석 추가",
     icon: <MessageCircleCode className="w-[26px] h-[26px]" />,
     component: null,
   },
   {
     id: "addLogs",
-    tooltip: "Add logs",
+    tooltip: "로그 추가",
     icon: <ScrollText className="w-[26px] h-[26px]" />,
     component: null,
   },
   {
     id: "portLanguage",
-    tooltip: "Port language",
+    tooltip: "언어 변환",
     icon: <BookA className="w-[26px] h-[26px]" />,
     component: (
       props: SharedComponentProps & { language: ProgrammingLanguageOptions }
@@ -48,7 +48,7 @@ const toolbarOptions: ToolbarOption[] = [
   },
   {
     id: "fixBugs",
-    tooltip: "Fix bugs",
+    tooltip: "버그 수정",
     icon: <Bug className="w-[26px] h-[26px]" />,
     component: null,
   },
@@ -152,8 +152,8 @@ export function CodeToolBar(props: CodeToolbarProps) {
         <TooltipIconButton
           tooltip={
             props.isTextSelected
-              ? "Quick actions disabled while text is selected"
-              : "Code tools"
+              ? "텍스트가 선택된 동안에는 빠른 작업이 비활성화됩니다"
+              : "코드 도구"
           }
           variant="outline"
           className={cn(

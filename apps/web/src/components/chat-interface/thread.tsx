@@ -22,7 +22,7 @@ const ThreadScrollToBottom: FC = () => {
   return (
     <ThreadPrimitive.ScrollToBottom asChild>
       <TooltipIconButton
-        tooltip="Scroll to bottom"
+        tooltip="맨 아래로 스크롤"
         variant="outline"
         className="absolute -top-8 rounded-full disabled:invisible"
       >
@@ -73,8 +73,8 @@ export const Thread: FC<ThreadProps> = (props: ThreadProps) => {
   const handleNewSession = async () => {
     if (!user) {
       toast({
-        title: "User not found",
-        description: "Failed to create thread without user",
+        title: "사용자를 찾을 수 없음",
+        description: "사용자 없이 대화를 생성할 수 없습니다",
         duration: 5000,
         variant: "destructive",
       });
@@ -111,7 +111,7 @@ export const Thread: FC<ThreadProps> = (props: ThreadProps) => {
         {hasChatStarted ? (
           <div className="flex flex-row flex-1 gap-2 items-center justify-end">
             <TooltipIconButton
-              tooltip="Collapse Chat"
+              tooltip="채팅 축소"
               variant="ghost"
               className="w-8 h-8"
               delayDuration={400}
@@ -120,7 +120,7 @@ export const Thread: FC<ThreadProps> = (props: ThreadProps) => {
               <PanelRightOpen className="text-gray-600" />
             </TooltipIconButton>
             <TooltipIconButton
-              tooltip="New chat"
+              tooltip="새 채팅"
               variant="ghost"
               className="w-8 h-8"
               delayDuration={400}

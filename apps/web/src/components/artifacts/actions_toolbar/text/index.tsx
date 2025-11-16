@@ -28,13 +28,13 @@ export interface ActionsToolbarProps {
 const toolbarOptions: ToolbarOption[] = [
   {
     id: "translate",
-    tooltip: "Translate",
+    tooltip: "번역",
     icon: <Languages className="w-[26px] h-[26px]" />,
     component: (props: SharedComponentProps) => <TranslateOptions {...props} />,
   },
   {
     id: "readingLevel",
-    tooltip: "Reading level",
+    tooltip: "가독성 수준",
     icon: <BookOpen className="w-[26px] h-[26px]" />,
     component: (props: SharedComponentProps) => (
       <ReadingLevelOptions {...props} />
@@ -42,13 +42,13 @@ const toolbarOptions: ToolbarOption[] = [
   },
   {
     id: "adjustLength",
-    tooltip: "Adjust the length",
+    tooltip: "길이 조정",
     icon: <SlidersVertical className="w-[26px] h-[26px]" />,
     component: (props: SharedComponentProps) => <LengthOptions {...props} />,
   },
   {
     id: "addEmojis",
-    tooltip: "Add emojis",
+    tooltip: "이모지 추가",
     icon: <SmilePlus className="w-[26px] h-[26px]" />,
     component: null,
   },
@@ -142,8 +142,8 @@ export function ActionsToolbar(props: ActionsToolbarProps) {
         <TooltipIconButton
           tooltip={
             props.isTextSelected
-              ? "Quick actions disabled while text is selected"
-              : "Writing tools"
+              ? "텍스트가 선택된 동안에는 빠른 작업이 비활성화됩니다"
+              : "글쓰기 도구"
           }
           variant="outline"
           className={cn(

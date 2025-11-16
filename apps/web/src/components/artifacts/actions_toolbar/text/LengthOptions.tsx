@@ -16,11 +16,11 @@ export interface LengthOptionsProps {
 }
 
 const lengthOptions = [
-  { value: 1, label: "Shortest" },
-  { value: 2, label: "Shorter" },
-  { value: 3, label: "Current length" },
-  { value: 4, label: "Long" },
-  { value: 5, label: "Longest" },
+  { value: 1, label: "가장 짧게" },
+  { value: 2, label: "짧게" },
+  { value: 3, label: "현재 길이" },
+  { value: 4, label: "길게" },
+  { value: 5, label: "가장 길게" },
 ];
 
 export function LengthOptions(props: LengthOptionsProps) {

@@ -27,7 +27,7 @@ export function TranslateOptions(props: TranslateOptionsProps) {
   return (
     <div className="flex flex-col gap-3 items-center w-full">
       <TooltipIconButton
-        tooltip="English"
+        tooltip="영어"
         variant="ghost"
         className="transition-colors w-[36px] h-[36px]"
         delayDuration={400}
@@ -36,7 +36,7 @@ export function TranslateOptions(props: TranslateOptionsProps) {
         <UsaFlag />
       </TooltipIconButton>
       <TooltipIconButton
-        tooltip="Mandarin"
+        tooltip="중국어"
         variant="ghost"
         className="transition-colors w-[36px] h-[36px]"
         delayDuration={400}
@@ -45,7 +45,7 @@ export function TranslateOptions(props: TranslateOptionsProps) {
         <ChinaFlag />
       </TooltipIconButton>
       <TooltipIconButton
-        tooltip="Hindi"
+        tooltip="힌디어"
         variant="ghost"
         className="transition-colors w-[36px] h-[36px]"
         delayDuration={400}
@@ -54,7 +54,7 @@ export function TranslateOptions(props: TranslateOptionsProps) {
         <IndiaFlag />
       </TooltipIconButton>
       <TooltipIconButton
-        tooltip="Spanish"
+        tooltip="스페인어"
         variant="ghost"
         className="transition-colors w-[36px] h-[36px]"
         delayDuration={400}
@@ -63,7 +63,7 @@ export function TranslateOptions(props: TranslateOptionsProps) {
         <SpanishFlag />
       </TooltipIconButton>
       <TooltipIconButton
-        tooltip="French"
+        tooltip="프랑스어"
         variant="ghost"
         className="transition-colors w-[36px] h-[36px]"
         delayDuration={400}

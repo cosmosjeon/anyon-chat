@@ -10,29 +10,29 @@ import { ComposerAttachments } from "../assistant-ui/attachment";
 import { ComposerActionsPopOut } from "./composer-actions-popout";
 
 const GENERIC_PLACEHOLDERS = [
-  "Share your big idea and let's write something amazing",
-  "Type your vision for the next great piece of content",
-  "Your masterpiece begins with this prompt",
-  "What would you like us to write about today?",
-  "Drop your content idea here and let's create",
-  "Your next great piece starts with this prompt",
-  "Share your story idea and watch it unfold",
-  "Let's write something incredible - start here",
-  "Your writing journey begins with this prompt",
-  "Turn your idea into content magic - start here",
+  "당신의 아이디어를 공유하고 멋진 콘텐츠를 만들어요",
+  "다음 훌륭한 콘텐츠에 대한 비전을 입력해주세요",
+  "당신의 걸작은 이 프롬프트에서 시작됩니다",
+  "오늘은 무엇에 대해 작성하시겠어요?",
+  "콘텐츠 아이디어를 여기에 입력하고 함께 만들어요",
+  "다음 훌륭한 작품은 이 프롬프트에서 시작됩니다",
+  "스토리 아이디어를 공유하고 펼쳐보세요",
+  "놀라운 작품을 함께 써봐요 - 여기서 시작하세요",
+  "당신의 글쓰기 여정은 이 프롬프트에서 시작됩니다",
+  "아이디어를 콘텐츠 마법으로 바꿔보세요 - 여기서 시작",
 ];
 
 const SEARCH_PLACEHOLDERS = [
-  "Share your topic - I'll add live data",
-  "Write about anything - I'll find sources",
-  "Your idea + fresh research = great content",
-  "Start here with real-time facts",
-  "Topic here for data-rich content",
-  "Create with current insights",
-  "Write now with live sources",
-  "Your story + fresh data",
-  "Ideas welcome - research ready",
-  "Start fresh with live facts",
+  "주제를 공유하세요 - 최신 데이터를 추가해드릴게요",
+  "무엇이든 작성하세요 - 자료를 찾아드릴게요",
+  "당신의 아이디어 + 최신 연구 = 훌륭한 콘텐츠",
+  "실시간 사실과 함께 여기서 시작하세요",
+  "데이터가 풍부한 콘텐츠를 위한 주제를 입력하세요",
+  "최신 인사이트로 만들어요",
+  "실시간 자료와 함께 지금 작성하세요",
+  "당신의 스토리 + 최신 데이터",
+  "아이디어 환영 - 리서치 준비 완료",
+  "최신 사실과 함께 새롭게 시작하세요",
 ];
 
 const getRandomPlaceholder = (searchEnabled: boolean) => {
@@ -93,7 +93,7 @@ export const Composer: FC<ComposerProps> = (props: ComposerProps) => {
           <ThreadPrimitive.If running={false}>
             <ComposerPrimitive.Send asChild>
               <TooltipIconButton
-                tooltip="Send"
+                tooltip="전송"
                 variant="default"
                 className="my-2.5 size-8 p-2 transition-opacity ease-in"
               >
@@ -104,7 +104,7 @@ export const Composer: FC<ComposerProps> = (props: ComposerProps) => {
           <ThreadPrimitive.If running>
             <ComposerPrimitive.Cancel asChild>
               <TooltipIconButton
-                tooltip="Cancel"
+                tooltip="취소"
                 variant="default"
                 className="my-2.5 size-8 p-2 transition-opacity ease-in"
               >

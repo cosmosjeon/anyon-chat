@@ -1,0 +1,5 @@
+# Open Canvas / Anyon overview
+- Purpose: Open Canvas is an OSS Next.js (14) + LangGraph app for collaborating with agents to author documents; Anyon plans to extend it into an AI-driven PRD/user-scenario generator.
+- Stack: TypeScript throughout; frontend uses Next.js 14, React 18, Tailwind, Radix UI, @uiw/react-md-editor/CodeMirror, Zustand; backend/agents use LangGraph/LangChain (Anthropic/OpenAI etc.); auth/database via Supabase; observability via LangSmith.
+- Monorepo: Yarn workspaces with Turbo. Apps: `apps/web` (frontend), `apps/agents` (LangGraph server). Packages: `packages/shared` (types/templates/etc.), `packages/evals`.
+- Key configs: root `package.json` defines turbo-driven build/lint/format. `turbo.json` sets tasks with workspace inheritance. Prettier/ESLint configs exist per app.

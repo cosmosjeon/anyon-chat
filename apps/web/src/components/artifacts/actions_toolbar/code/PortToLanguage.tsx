@@ -39,8 +39,8 @@ export function PortToLanguageOptions(props: PortToLanguageOptionsProps) {
   const handleSubmit = async (portLanguage: ProgrammingLanguageOptions) => {
     if (portLanguage === props.language) {
       toast({
-        title: "Port language error",
-        description: `The code is already in ${prettifyLanguage(portLanguage)}`,
+        title: "언어 변환 오류",
+        description: `코드가 이미 ${prettifyLanguage(portLanguage)}로 작성되어 있습니다`,
         duration: 5000,
       });
       props.handleClose();
