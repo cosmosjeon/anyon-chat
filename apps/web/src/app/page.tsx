@@ -9,8 +9,8 @@ import { Suspense } from "react";
 
 export default function Home() {
   return (
-    <Suspense>
-      <UserProvider>
+    <UserProvider>
+      <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>
         <ThreadProvider>
           <AssistantProvider>
             <GraphProvider>
@@ -18,7 +18,7 @@ export default function Home() {
             </GraphProvider>
           </AssistantProvider>
         </ThreadProvider>
-      </UserProvider>
-    </Suspense>
+      </Suspense>
+    </UserProvider>
   );
 }

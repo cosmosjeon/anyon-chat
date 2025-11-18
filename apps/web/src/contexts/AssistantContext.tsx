@@ -122,9 +122,25 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         },
       });
 
-      setAssistants({
-        ...response,
-      });
+      // Update any assistants with graphId "agent" to "planning"
+      const updatedAssistants = [];
+      for (const assistant of response) {
+        if (assistant.graph_id === "agent") {
+          try {
+            const updated = await client.assistants.update(assistant.assistant_id, {
+              graphId: "planning",
+            });
+            updatedAssistants.push(updated);
+          } catch (e) {
+            console.error(`Failed to update assistant ${assistant.assistant_id} to planning graph`, e);
+            updatedAssistants.push(assistant);
+          }
+        } else {
+          updatedAssistants.push(assistant);
+        }
+      }
+
+      setAssistants(updatedAssistants);
       setIsLoadingAllAssistants(false);
     } catch (e) {
       toast({
@@ -176,7 +192,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
       const { tools, systemPrompt, name, documents, graphId, ...metadata } =
         newAssistant;
       const createdAssistant = await client.assistants.create({
-        graphId: graphId || "agent",
+        graphId: graphId || "planning",
         name,
         metadata: {
           user_id: userId,
@@ -220,7 +236,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
         editedAssistant;
       const response = await client.assistants.update(assistantId, {
         name,
-        graphId: graphId || "agent",
+        graphId: graphId || "planning",
         metadata: {
           user_id: userId,
           ...metadata,
@@ -325,10 +341,9 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // No cookie found. First, search for all assistants under the user's ID
+    // No cookie found. First, search for ALL assistants under the user's ID (not filtered by graphId)
     try {
       userAssistants = await client.assistants.search({
-        graphId: "agent",
         metadata: {
           user_id: userId,
         },
@@ -336,6 +351,20 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
       });
     } catch (e) {
       console.error("Failed to get default assistant", e);
+    }
+
+    // Update any assistants with graphId "agent" to "planning"
+    for (const assistant of userAssistants) {
+      if (assistant.graph_id === "agent") {
+        try {
+          await client.assistants.update(assistant.assistant_id, {
+            graphId: "planning",
+          });
+          assistant.graph_id = "planning";
+        } catch (e) {
+          console.error(`Failed to update assistant ${assistant.assistant_id} to planning graph`, e);
+        }
+      }
     }
 
     if (!userAssistants.length) {

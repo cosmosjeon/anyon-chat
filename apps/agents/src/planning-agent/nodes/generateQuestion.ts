@@ -38,14 +38,70 @@ export async function generateQuestion(
   state: PRDQuestionnaireState,
   config: LangGraphRunnableConfig
 ): Promise<PRDQuestionnaireReturnType> {
+  console.log("[generateQuestion] entering - RECEIVED STATE:", {
+    currentQuestionCount: state.currentQuestionCount,
+    maxQuestions: state.maxQuestions,
+    templateLevel: state.templateLevel,
+    awaitingAnswer: state.awaitingAnswer,
+    needsFollowup: state.needsFollowup,
+    "state.maxQuestions (raw)": state.maxQuestions,
+  });
   const {
     prdData,
     answers,
     templateLevel,
-    maxQuestions,
     currentQuestionCount,
     conversationContext,
+    messages,
   } = state;
+
+  // Fix: If maxQuestions is at default value but templateLevel is set, correct it
+  let maxQuestions = state.maxQuestions;
+  if (maxQuestions === 30 && templateLevel) {
+    if (templateLevel === "simple") {
+      maxQuestions = 15;
+    } else if (templateLevel === "standard") {
+      maxQuestions = 30;
+    } else if (templateLevel === "detailed") {
+      maxQuestions = 50;
+    }
+    console.log("[generateQuestion] corrected maxQuestions from templateLevel:", {
+      templateLevel,
+      maxQuestions,
+    });
+  }
+
+  // Extract previously asked questions from messages
+  const askedQuestions: string[] = [];
+  if (messages) {
+    for (const message of messages) {
+      if (message._getType() === "ai") {
+        const content = message.content.toString();
+        // Extract the question text (skip onboarding messages and final messages)
+        if (
+          content.includes("질문 ") &&
+          content.includes("/") &&
+          !content.includes("어떤 제품 아이디어") &&
+          !content.includes("얼마나 디테일하게")
+        ) {
+          // Extract just the question part, removing the progress info
+          const lines = content.split("\n");
+          for (const line of lines) {
+            if (
+              line.trim() &&
+              !line.includes("질문 ") &&
+              !line.includes("진행률:") &&
+              !line.match(/^\d+\./) && // Skip numbered options
+              !line.includes("**") // Skip bold formatting lines
+            ) {
+              askedQuestions.push(line.trim());
+              break; // Only take the first question line
+            }
+          }
+        }
+      }
+    }
+  }
 
   // Check if we should finish
   const completenessReport = checkCompleteness(prdData, templateLevel);
@@ -61,8 +117,8 @@ export async function generateQuestion(
     };
   }
 
-  // Update conversation context
-  const updatedContext = analyzeConversationContext(answers, prdData);
+  // Update conversation context (preserve originalIdea from onboarding)
+  const updatedContext = analyzeConversationContext(answers, prdData, conversationContext);
 
   // Get current phase info
   const phase = getCurrentPhase(currentQuestionCount, maxQuestions);
@@ -84,8 +140,11 @@ export async function generateQuestion(
       ? criticalGaps.map((g) => `- ${g.section}: ${g.hint}`).join("\n")
       : "없음 (모든 high priority 필드 채워짐)";
 
-  const conversationContextText = updatedContext.product
-    ? `**제품**: ${updatedContext.product}\n` +
+  const conversationContextText = updatedContext.originalIdea || updatedContext.product
+    ? `**⚠️ 사용자가 처음 설명한 제품 아이디어 (가장 중요!)**: ${updatedContext.originalIdea || updatedContext.product}\n` +
+      (updatedContext.product && updatedContext.product !== updatedContext.originalIdea
+        ? `**현재 제품 정보**: ${updatedContext.product}\n`
+        : "") +
       `**문제**: ${updatedContext.problem || "미정의"}\n` +
       `**타겟**: ${updatedContext.target || "미정의"}\n` +
       `**핵심 가치**: ${updatedContext.values?.join(", ") || "미정의"}`
@@ -93,6 +152,12 @@ export async function generateQuestion(
 
   const userMindset = updatedContext.userMindset || "balanced";
   const mindsetDescription = getMindsetDescription(userMindset);
+
+  // Format asked questions for prompt
+  const askedQuestionsText =
+    askedQuestions.length > 0
+      ? askedQuestions.map((q, idx) => `${idx + 1}. ${q}`).join("\n")
+      : "아직 질문한 내용이 없습니다 (첫 질문).";
 
   // Prepare prompt for question generation
   const questionPrompt = DYNAMIC_QUESTION_GENERATION_PROMPT.replace(
@@ -110,7 +175,8 @@ export async function generateQuestion(
     .replace("{criticalGaps}", criticalGapsText)
     .replace("{conversationContext}", conversationContextText)
     .replace("{userMindset}", userMindset)
-    .replace("{mindsetDescription}", mindsetDescription);
+    .replace("{mindsetDescription}", mindsetDescription)
+    .replace("{askedQuestions}", askedQuestionsText);
 
   // Generate question using AI
   const model = await getModelFromConfig(config);
@@ -191,12 +257,28 @@ export async function generateQuestion(
       const jsonString = jsonMatch ? jsonMatch[1] : optionContent;
 
       options = JSON.parse(jsonString);
+
+      // Ensure "기타" option is always present
+      if (options) {
+        const hasOtherOption = options.some(
+          (opt) => opt.value === "other" || opt.label.includes("기타")
+        );
+
+        if (!hasOtherOption) {
+          options.push({
+            label: "기타",
+            value: "other",
+            description: "직접 입력하겠습니다",
+          });
+        }
+      }
     } catch (error) {
       console.error("Failed to parse options response:", error);
       // Fallback to default options
       options = [
         { label: "네", value: "yes", description: "진행합니다" },
         { label: "아니오", value: "no", description: "다른 방향으로" },
+        { label: "기타", value: "other", description: "직접 입력하겠습니다" },
       ];
     }
   }
@@ -205,11 +287,24 @@ export async function generateQuestion(
   let questionText = `**질문 ${currentQuestionCount + 1}/${maxQuestions}** (진행률: ${progress}%)\n\n${dynamicQuestion.question}`;
 
   if (options && options.length > 0) {
-    questionText += "\n\n" + formatOptions(options);
+    questionText += "\n\n💡 아래 번호를 선택하거나, 직접 입력하세요\n\n" + formatOptions(options);
   }
 
   const questionMessage = new AIMessage({
     content: questionText,
+    additional_kwargs: {
+      dynamicQuestion: {
+        question: dynamicQuestion,
+        options,
+      },
+    },
+  });
+
+  console.log("[generateQuestion] emitting question", {
+    questionNumber: currentQuestionCount + 1,
+    maxQuestions,
+    progress,
+    question: dynamicQuestion.question,
   });
 
   return {
@@ -223,5 +318,8 @@ export async function generateQuestion(
       question: dynamicQuestion,
       options,
     }),
+    latestDynamicQuestion: dynamicQuestion,
+    maxQuestions,
+    templateLevel: state.templateLevel,
   };
 }

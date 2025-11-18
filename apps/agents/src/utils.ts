@@ -178,8 +178,8 @@ export const getModelConfig = (
   apiKey?: string;
   baseUrl?: string;
 } => {
-  const customModelName = config.configurable?.customModelName as string;
-  if (!customModelName) throw new Error("Model name is missing in config.");
+  const customModelName = (config.configurable?.customModelName as string) || "claude-3-5-haiku-20241022";
+  // Default to Claude 3.5 Haiku if no model specified
 
   const modelConfig = config.configurable?.modelConfig as CustomModelConfig;
 

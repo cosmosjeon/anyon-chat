@@ -5,15 +5,33 @@ import { Answer, ConversationContext, UserMindset, PRDData } from "../types";
  */
 export function analyzeConversationContext(
   answers: Answer[],
-  prdData: Partial<PRDData>
+  prdData: Partial<PRDData>,
+  existingContext?: ConversationContext
 ): ConversationContext {
   const context: ConversationContext = {};
 
+  // IMPORTANT: Preserve original idea from onboarding
+  // This is the user's FIRST description and takes priority
+  if (existingContext?.originalIdea) {
+    context.originalIdea = existingContext.originalIdea;
+  }
+
   // Extract product information
+  // If we have originalIdea, always include it in product description
   if (prdData.productName || prdData.productOneLine) {
-    context.product = prdData.productName
+    const productDesc = prdData.productName
       ? `${prdData.productName}: ${prdData.productOneLine || ""}`
       : prdData.productOneLine;
+
+    // Combine with original idea if available
+    if (context.originalIdea) {
+      context.product = `${context.originalIdea} (제품명: ${prdData.productName || "미정"})`;
+    } else {
+      context.product = productDesc;
+    }
+  } else if (context.originalIdea) {
+    // If no product name/oneline yet, use original idea
+    context.product = context.originalIdea;
   }
 
   // Extract problem
@@ -43,7 +61,7 @@ export function analyzeConversationContext(
  * Infer user mindset from previous answers
  */
 export function inferUserMindset(
-  answers: Answer[],
+  _answers: Answer[],
   prdData: Partial<PRDData>
 ): UserMindset {
   const signals = {

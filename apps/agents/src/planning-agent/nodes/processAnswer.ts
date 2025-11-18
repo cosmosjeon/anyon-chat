@@ -2,8 +2,8 @@ import { LangGraphRunnableConfig } from "@langchain/langgraph";
 import { PRDQuestionnaireReturnType, PRDQuestionnaireState } from "../state";
 import { Answer, DynamicQuestion, QuestionOption } from "../types";
 import { saveConversationHistory, trackAnalyticsEvent } from "../supabase";
-import { getModelFromConfig } from "../../utils";
-import { FOLLOWUP_SYSTEM_PROMPT } from "../prompts";
+// import { getModelFromConfig } from "../../utils";
+// import { FOLLOWUP_SYSTEM_PROMPT } from "../prompts";
 import { analyzeConversationContext } from "../utils/contextAnalyzer";
 
 /**
@@ -28,25 +28,118 @@ export async function processAnswer(
       ? lastMessage.content
       : JSON.stringify(lastMessage.content);
 
+  console.log("[processAnswer] answer received", {
+    questionCount: state.currentQuestionCount,
+    answer: userAnswer,
+    awaitingAnswer: state.awaitingAnswer,
+    needsFollowup: state.needsFollowup,
+    customQuestionText: state.customQuestionText,
+  });
+
   // Extract the question info from customQuestionText
-  let dynamicQuestion: DynamicQuestion | null = null;
+  let dynamicQuestion: DynamicQuestion | null =
+    state.latestDynamicQuestion ?? null;
   let options: QuestionOption[] | undefined;
 
   if (state.customQuestionText) {
     try {
       const questionData = JSON.parse(state.customQuestionText);
-      dynamicQuestion = questionData.question;
-      options = questionData.options;
+      dynamicQuestion = dynamicQuestion ?? questionData.question;
+      options = options ?? questionData.options;
     } catch (error) {
       console.error("Failed to parse customQuestionText:", error);
     }
   }
 
+  if (!dynamicQuestion) {
+    const lastDynamic = [...messages]
+      .reverse()
+      .find(
+        (msg) =>
+          msg._getType() === "ai" &&
+          msg.additional_kwargs?.dynamicQuestion &&
+          (msg.additional_kwargs.dynamicQuestion as any).question
+      );
+
+    if (lastDynamic && lastDynamic.additional_kwargs?.dynamicQuestion) {
+      const recovered = lastDynamic.additional_kwargs.dynamicQuestion as {
+        question: DynamicQuestion;
+        options?: QuestionOption[];
+      };
+      console.log("[processAnswer] recovered dynamic question from message", {
+        question: recovered.question,
+        options: recovered.options,
+      });
+      dynamicQuestion = recovered.question;
+      options = recovered.options;
+    }
+  }
   // If we don't have the question data, we can't process properly
   if (!dynamicQuestion) {
     console.warn("No dynamic question found in state, skipping answer processing");
     return {
       awaitingAnswer: false,
+      latestDynamicQuestion: undefined,
+      maxQuestions: state.maxQuestions,
+      templateLevel: state.templateLevel,
+    };
+  }
+
+  // Check if user selected "기타" (other) option
+  let selectedOtherOption = false;
+
+  if (options && options.length > 0) {
+    // Check if user's answer is "기타" directly
+    if (userAnswer.toLowerCase().includes("기타")) {
+      selectedOtherOption = true;
+    } else {
+      // Check if user entered a number that corresponds to "기타" option
+      const trimmed = userAnswer.trim();
+      const digitMatches = trimmed.match(/\d+/g);
+
+      if (digitMatches) {
+        // Handle "123", "1,2,3", etc.
+        const digits = /^\d+$/.test(trimmed) && trimmed.length > 1
+          ? trimmed.split('')
+          : digitMatches;
+
+        // Check if any selected number is "기타"
+        for (const digit of digits) {
+          const optionIndex = parseInt(digit) - 1;
+          if (optionIndex >= 0 && optionIndex < options.length) {
+            const option = options[optionIndex];
+            if (option.value === "other" || option.label.includes("기타")) {
+              selectedOtherOption = true;
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Follow-up check for "기타" selection
+  if (selectedOtherOption) {
+    const followupText = `${dynamicQuestion.question}\n\n직접 입력해주세요:`;
+
+    return {
+      awaitingAnswer: true,
+      needsFollowup: true,
+      customQuestionText: JSON.stringify({
+        question: {
+          ...dynamicQuestion,
+          question: followupText,
+          type: "text", // Change to text for direct input
+        },
+        options: undefined, // Remove options for direct input
+      }),
+      latestDynamicQuestion: {
+        ...dynamicQuestion,
+        question: followupText,
+        type: "text",
+      },
+      maxQuestions: state.maxQuestions,
+      templateLevel: state.templateLevel,
     };
   }
 
@@ -55,12 +148,13 @@ export async function processAnswer(
     dynamicQuestion.type === "text" &&
     needsFollowupForAnswer(userAnswer)
   ) {
-    const followupText = await generateFollowupQuestion({
-      question: dynamicQuestion.question,
-      userAnswer,
-      prdData: state.prdData,
-      config: _config,
-    });
+    // TODO: Use followupText in the response
+    // const followupText = await generateFollowupQuestion({
+    //   question: dynamicQuestion.question,
+    //   userAnswer,
+    //   prdData: state.prdData,
+    //   config: _config,
+    // });
 
     return {
       awaitingAnswer: true,
@@ -69,6 +163,43 @@ export async function processAnswer(
         question: dynamicQuestion,
         options,
       }),
+      latestDynamicQuestion: dynamicQuestion,
+      maxQuestions: state.maxQuestions,
+      templateLevel: state.templateLevel,
+    };
+  }
+
+  // Handle onboarding template selection
+  if (dynamicQuestion.targetSection === "온보딩") {
+    const userInput = userAnswer.trim().toLowerCase();
+
+    let selectedLevel: "simple" | "standard" | "detailed" = "standard";
+    let maxQuestions = 30;
+
+    if (userInput === "1" || userInput.includes("빠르게") || userInput.includes("간단")) {
+      selectedLevel = "simple";
+      maxQuestions = 15;
+    } else if (userInput === "2" || userInput.includes("표준") || userInput.includes("standard")) {
+      selectedLevel = "standard";
+      maxQuestions = 30;
+    } else if (userInput === "3" || userInput.includes("디테일") || userInput.includes("detailed")) {
+      selectedLevel = "detailed";
+      maxQuestions = 50;
+    }
+
+    console.log("[processAnswer] template selection processed:", {
+      userInput,
+      selectedLevel,
+      maxQuestions,
+    });
+
+    return {
+      awaitingAnswer: false,
+      needsFollowup: false,
+      templateLevel: selectedLevel,
+      maxQuestions,
+      customQuestionText: undefined,
+      latestDynamicQuestion: undefined,
     };
   }
 
@@ -88,10 +219,11 @@ export async function processAnswer(
     options
   );
 
-  // Update conversation context
+  // Update conversation context (preserve originalIdea)
   const updatedContext = analyzeConversationContext(
     [...state.answers, answer],
-    { ...state.prdData, ...prdDataUpdate }
+    { ...state.prdData, ...prdDataUpdate },
+    state.conversationContext
   );
 
   // Save to Supabase if projectId exists
@@ -115,14 +247,17 @@ export async function processAnswer(
     );
   }
 
-  return {
-    awaitingAnswer: false,
-    needsFollowup: false,
-    answers: [answer],
-    prdData: prdDataUpdate,
-    conversationContext: updatedContext,
-    customQuestionText: undefined, // Clear for next question
-  };
+    return {
+      awaitingAnswer: false,
+      needsFollowup: false,
+      answers: [answer],
+      prdData: prdDataUpdate,
+      conversationContext: updatedContext,
+      customQuestionText: undefined, // Clear for next question
+      latestDynamicQuestion: undefined,
+      maxQuestions: state.maxQuestions,
+      templateLevel: state.templateLevel,
+    };
 }
 
 function needsFollowupForAnswer(answer: string): boolean {
@@ -138,42 +273,43 @@ function needsFollowupForAnswer(answer: string): boolean {
   return false;
 }
 
-async function generateFollowupQuestion({
-  question,
-  userAnswer,
-  prdData,
-  config,
-}: {
-  question: string;
-  userAnswer: string;
-  prdData: PRDQuestionnaireState["prdData"];
-  config: LangGraphRunnableConfig;
-}): Promise<string> {
-  const model = await getModelFromConfig(config, {
-    temperature: 0.4,
-    maxTokens: 120,
-  });
-  const prdContext = JSON.stringify(prdData || {}, null, 2);
+// TODO: Re-enable this function when followup logic is implemented
+// async function generateFollowupQuestion({
+//   question,
+//   userAnswer,
+//   prdData,
+//   config,
+// }: {
+//   question: string;
+//   userAnswer: string;
+//   prdData: PRDQuestionnaireState["prdData"];
+//   config: LangGraphRunnableConfig;
+// }): Promise<string> {
+//   const model = await getModelFromConfig(config, {
+//     temperature: 0.4,
+//     maxTokens: 120,
+//   });
+//   const prdContext = JSON.stringify(prdData || {}, null, 2);
 
-  const resp = await model.invoke([
-    { role: "system", content: FOLLOWUP_SYSTEM_PROMPT },
-    {
-      role: "user",
-      content: `원래 질문: "${question}"
-사용자 답변: "${userAnswer}"
-PRD 데이터: ${prdContext}
+//   const resp = await model.invoke([
+//     { role: "system", content: FOLLOWUP_SYSTEM_PROMPT },
+//     {
+//       role: "user",
+//       content: `원래 질문: "${question}"
+// 사용자 답변: "${userAnswer}"
+// PRD 데이터: ${prdContext}
 
-위 답변을 더 구체적으로 받기 위해 한 문장으로 꼬리질문을 만들어주세요.
-- 숫자/범위/사례/타겟 특징 등 구체 정보를 요구
-- 공손하지만 간결하게, 질문 문장만 출력`,
-    },
-  ]);
+// 위 답변을 더 구체적으로 받기 위해 한 문장으로 꼬리질문을 만들어주세요.
+// - 숫자/범위/사례/타겟 특징 등 구체 정보를 요구
+// - 공손하지만 간결하게, 질문 문장만 출력`,
+//     },
+//   ]);
 
-  if (typeof resp.content === "string") {
-    return resp.content.trim();
-  }
-  throw new Error("Failed to generate follow-up question");
-}
+//   if (typeof resp.content === "string") {
+//     return resp.content.trim();
+//   }
+//   throw new Error("Failed to generate follow-up question");
+// }
 
 /**
  * Extract structured PRD data dynamically based on target section
@@ -189,12 +325,37 @@ function extractPRDDataDynamically(
   // If it's a choice question, map the option value
   let processedAnswer = answer;
   if (options && options.length > 0) {
-    // User might have entered a number (1, 2, 3, 4)
-    const numMatch = answer.match(/^(\d+)$/);
-    if (numMatch) {
-      const optionIndex = parseInt(numMatch[1]) - 1;
-      if (optionIndex >= 0 && optionIndex < options.length) {
-        processedAnswer = options[optionIndex].label + " - " + options[optionIndex].description;
+    // Check if user entered number(s): supports "1", "123", "1,2,3", "1 2 3", "1, 2, 3"
+    const trimmed = answer.trim();
+
+    // Extract all digits from the answer
+    const digitMatches = trimmed.match(/\d+/g);
+
+    if (digitMatches && digitMatches.length > 0) {
+      const selectedOptions: string[] = [];
+
+      // If single digit without separators (e.g., "123"), treat each digit separately
+      if (/^\d+$/.test(trimmed) && trimmed.length > 1) {
+        // "123" → ["1", "2", "3"]
+        const digits = trimmed.split('');
+        digits.forEach((digit) => {
+          const optionIndex = parseInt(digit) - 1;
+          if (optionIndex >= 0 && optionIndex < options.length) {
+            selectedOptions.push(options[optionIndex].label + " - " + options[optionIndex].description);
+          }
+        });
+      } else {
+        // "1,2,3" or "1 2 3" or single "1"
+        digitMatches.forEach((numStr) => {
+          const optionIndex = parseInt(numStr) - 1;
+          if (optionIndex >= 0 && optionIndex < options.length) {
+            selectedOptions.push(options[optionIndex].label + " - " + options[optionIndex].description);
+          }
+        });
+      }
+
+      if (selectedOptions.length > 0) {
+        processedAnswer = selectedOptions.join(", ");
       }
     }
   }

@@ -14,7 +14,13 @@ import { getStringFromContent } from ".././../../utils.js";
 import { includeURLContents } from "./include-url-contents.js";
 
 function extractURLsFromLastMessage(messages: BaseMessage[]): string[] {
+  if (!messages?.length) {
+    return [];
+  }
   const recentMessage = messages[messages.length - 1];
+  if (!recentMessage?.content) {
+    return [];
+  }
   const recentMessageContent = getStringFromContent(recentMessage.content);
   const messageUrls = extractUrls(recentMessageContent);
   return messageUrls;

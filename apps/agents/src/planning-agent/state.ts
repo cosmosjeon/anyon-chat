@@ -1,5 +1,5 @@
 import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
-import { Answer, PRDData, ConversationContext } from "./types";
+import { Answer, PRDData, ConversationContext, DynamicQuestion } from "./types";
 import { ArtifactV3 } from "@opencanvas/shared/types";
 import { TemplateLevel } from "./prd-checklist";
 
@@ -17,7 +17,7 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
    * Template level selected by user (simple/standard/detailed)
    */
   templateLevel: Annotation<TemplateLevel>({
-    reducer: (_, update) => update ?? "standard",
+    reducer: (prev, update) => update ?? prev ?? "standard",
     default: () => "standard",
   }),
 
@@ -25,7 +25,7 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
    * Maximum number of questions allowed for this session
    */
   maxQuestions: Annotation<number>({
-    reducer: (_, update) => update ?? 30,
+    reducer: (prev, update) => update ?? prev ?? 30,
     default: () => 30,
   }),
 
@@ -33,7 +33,7 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
    * Current question count (increments with each question asked)
    */
   currentQuestionCount: Annotation<number>({
-    reducer: (_, update) => update ?? 0,
+    reducer: (prev, update) => update ?? prev ?? 0,
     default: () => 0,
   }),
 
@@ -136,6 +136,14 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
    * Optional custom question text (e.g., dynamically generated follow-up).
    */
   customQuestionText: Annotation<string | undefined>({
+    reducer: (_, update) => update,
+    default: () => undefined,
+  }),
+
+  /**
+   * Recently generated dynamic question info.
+   */
+  latestDynamicQuestion: Annotation<DynamicQuestion | undefined>({
     reducer: (_, update) => update,
     default: () => undefined,
   }),

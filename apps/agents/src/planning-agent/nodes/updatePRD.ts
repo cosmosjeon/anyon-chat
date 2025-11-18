@@ -60,6 +60,8 @@ export async function updatePRD(
   return {
     prdContent,
     artifact,
+    maxQuestions: state.maxQuestions,
+    templateLevel: state.templateLevel,
     next: "ask_question", // Continue to next question
   };
 }

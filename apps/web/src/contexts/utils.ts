@@ -126,7 +126,7 @@ export const updateHighlightedMarkdown = (
   newArtifactIndex: number,
   prevCurrentContent: ArtifactMarkdownV3,
   isFirstUpdate: boolean
-): ArtifactV3 | undefined => {
+): ArtifactV3 => {
   // Create a deep copy of the previous artifact
   const basePrevArtifact = {
     ...prevArtifact,
@@ -181,7 +181,7 @@ export const updateHighlightedCode = (
   newArtifactIndex: number,
   prevCurrentContent: ArtifactCodeV3,
   isFirstUpdate: boolean
-): ArtifactV3 | undefined => {
+): ArtifactV3 => {
   // Create a deep copy of the previous artifact
   const basePrevArtifact = {
     ...prevArtifact,

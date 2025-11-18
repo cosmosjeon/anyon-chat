@@ -64,10 +64,8 @@ export function checkCompleteness(
  */
 export function getNextSection(
   report: CompletenessReport,
-  templateLevel: TemplateLevel
+  _templateLevel: TemplateLevel
 ): string | null {
-  const template = PRD_TEMPLATE_LEVELS[templateLevel];
-
   // Find sections with lowest scores
   const incompleteSections = report.sections.filter((s) => s.score < 100);
 
@@ -118,24 +116,12 @@ export function isCompleteEnough(
   currentQuestionCount: number,
   maxQuestions: number
 ): boolean {
-  // If we've used all questions, we're done regardless
+  // Only finish if we've reached 100% completeness OR used all questions
+  if (report.overallScore >= 100) {
+    return true;
+  }
+
   if (currentQuestionCount >= maxQuestions) {
-    return true;
-  }
-
-  // If overall score is above 90%, we're done
-  if (report.overallScore >= 90) {
-    return true;
-  }
-
-  // If we're at 80%+ questions used and score is above 70%, we're done
-  const questionProgress = (currentQuestionCount / maxQuestions) * 100;
-  if (questionProgress >= 80 && report.overallScore >= 70) {
-    return true;
-  }
-
-  // If there are no critical gaps and score is above 80%, we're done
-  if (report.criticalGaps.length === 0 && report.overallScore >= 80) {
     return true;
   }
 

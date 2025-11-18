@@ -24,17 +24,22 @@ function routeOnStart(state: PRDQuestionnaireState): string {
   const messages = state.messages || [];
   const lastMessage = messages[messages.length - 1];
 
-  // If no template level selected yet, start with onboarding
-  if (!state.templateLevel || state.templateLevel === "standard" && messages.length === 0) {
+  // Onboarding phase - MUST complete before processing answers
+  // Step 1: messages.length === 0 → ask_onboarding (ask for idea)
+  // Step 2: messages.length === 2 → ask_onboarding (ask for template level)
+  // Step 3: messages.length === 4 → ask_onboarding (confirm and finish onboarding)
+  // IMPORTANT: Check messages.length BEFORE awaitingAnswer to avoid skipping onboarding
+  if (messages.length < 5) {
     return "ask_onboarding";
   }
 
+  // After onboarding is complete (messages.length >= 5)
   // If we're waiting for an answer and the latest message is from the user, process it
   if (state.awaitingAnswer && lastMessage?._getType() === "human") {
     return "process_answer";
   }
 
-  // If onboarding is done but no questions asked yet, generate first question
+  // If no questions asked yet, generate first question
   if (state.currentQuestionCount === 0) {
     return "generate_question";
   }

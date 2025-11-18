@@ -63,6 +63,8 @@ import { useAssistantContext } from "./AssistantContext";
 import { StreamWorkerService } from "@/workers/graph-stream/streamWorker";
 import { useQueryState } from "nuqs";
 
+export type ArtifactTab = "prd" | "userflow";
+
 interface GraphData {
   runId: string | undefined;
   isStreaming: boolean;
@@ -77,6 +79,8 @@ interface GraphData {
   artifactUpdateFailed: boolean;
   chatStarted: boolean;
   searchEnabled: boolean;
+  activeTab: ArtifactTab;
+  setActiveTab: Dispatch<SetStateAction<ArtifactTab>>;
   setSearchEnabled: Dispatch<SetStateAction<boolean>>;
   setChatStarted: Dispatch<SetStateAction<boolean>>;
   setIsStreaming: Dispatch<SetStateAction<boolean>>;
@@ -113,6 +117,38 @@ function extractStreamDataOutput(output: any) {
   return output;
 }
 
+function getMessageText(message: BaseMessage): string {
+  if (typeof message.content === "string") {
+    return message.content;
+  }
+
+  if (Array.isArray(message.content)) {
+    return message.content
+      .map((part) => {
+        if (typeof part === "string") {
+          return part;
+        }
+        if (part && typeof part === "object" && "text" in part) {
+          return part.text ?? "";
+        }
+        return "";
+      })
+      .join("");
+  }
+
+  return "";
+}
+
+function getMessageSignature(message: BaseMessage) {
+  const type =
+    typeof message.getType === "function"
+      ? message.getType()
+      : typeof message._getType === "function"
+      ? message._getType()
+      : "unknown";
+  return `${type}:${getMessageText(message)}`;
+}
+
 export function GraphProvider({ children }: { children: ReactNode }) {
   const userData = useUserContext();
   const assistantsData = useAssistantContext();
@@ -121,7 +157,152 @@ export function GraphProvider({ children }: { children: ReactNode }) {
   const { shareRun } = useRuns();
   const [chatStarted, setChatStarted] = useState(false);
   const [messages, setMessages] = useState<BaseMessage[]>([]);
-  const [artifact, setArtifact] = useState<ArtifactV3>();
+  const [artifact, setArtifact] = useState<ArtifactV3 | undefined>(() => {
+    // Initial empty PRD template (Standard level)
+    const today = new Date().toISOString().split('T')[0];
+    const initialMarkdown = `# 프로젝트 요구사항 (PRD)
+
+**템플릿 레벨**: 표준
+**작성 진행도**: 0%
+**작성일**: ${today}
+
+---
+
+## 1. 제품 개요
+
+### 제품명
+
+_작성 중..._
+
+### 한 줄 설명
+
+_작성 중..._
+
+### 제품 비전
+
+_작성 중..._
+
+### 제품 목표 (수치 포함)
+
+_작성 중..._
+
+
+## 2. 문제 정의
+
+### 핵심 문제
+
+_작성 중..._
+
+### 문제 영향
+
+_작성 중..._
+
+### 기존 해결 방법
+
+_작성 중..._
+
+### 기존 솔루션 한계
+
+_작성 중..._
+
+
+## 3. 타겟 사용자
+
+### 타겟 그룹
+
+_작성 중..._
+
+### 타겟 상세 프로필
+
+_작성 중..._
+
+
+## 4. 핵심 가치 제안
+
+### 차별화 포인트
+
+_작성 중..._
+
+
+## 5. 비즈니스 모델
+
+### 수익 모델
+
+_작성 중..._
+
+### 무료/유료 구분
+
+_작성 중..._
+
+### 가격 정책
+
+_작성 중..._
+
+### 전환 전략
+
+_작성 중..._
+
+
+## 6. 핵심 기능
+
+### 핵심 기능 3개
+
+_작성 중..._
+
+### 기능별 설명
+
+_작성 중..._
+
+
+## 7. MVP 범위
+
+### MVP 범위
+
+_작성 중..._
+
+
+## 8. 성공 지표 (KPI)
+
+### 핵심 지표
+
+_작성 중..._
+
+### 목표 수치
+
+_작성 중..._
+
+
+## 9. 출시 계획
+
+### 출시 일정
+
+_작성 중..._
+
+
+## 10. 리스크 및 대응
+
+### 주요 리스크
+
+_작성 중..._
+
+
+---
+
+**다음 단계**: 채팅을 통해 질문에 답변하시면 이 템플릿이 자동으로 채워집니다.
+`;
+
+    return {
+      currentIndex: 0,
+      contents: [
+        {
+          index: 0,
+          type: 'text',
+          title: 'PRD 템플릿 (표준)',
+          fullMarkdown: initialMarkdown
+        }
+      ]
+    };
+  });
   const [selectedBlocks, setSelectedBlocks] = useState<TextHighlight>();
   const [isStreaming, setIsStreaming] = useState(false);
   const [updateRenderedArtifactRequired, setUpdateRenderedArtifactRequired] =
@@ -142,6 +323,7 @@ export function GraphProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState(false);
   const [artifactUpdateFailed, setArtifactUpdateFailed] = useState(false);
   const [searchEnabled, setSearchEnabled] = useState(false);
+  const [activeTab, setActiveTab] = useState<ArtifactTab>("prd");
 
   const [_, setWebSearchResultsId] = useQueryState(
     WEB_SEARCH_RESULTS_QUERY_PARAM
@@ -260,7 +442,150 @@ export function GraphProvider({ children }: { children: ReactNode }) {
 
   const clearState = () => {
     setMessages([]);
-    setArtifact(undefined);
+    // Reset to initial empty PRD template instead of undefined
+    const today = new Date().toISOString().split('T')[0];
+    const initialMarkdown = `# 프로젝트 요구사항 (PRD)
+
+**템플릿 레벨**: 표준
+**작성 진행도**: 0%
+**작성일**: ${today}
+
+---
+
+## 1. 제품 개요
+
+### 제품명
+
+_작성 중..._
+
+### 한 줄 설명
+
+_작성 중..._
+
+### 제품 비전
+
+_작성 중..._
+
+### 제품 목표 (수치 포함)
+
+_작성 중..._
+
+
+## 2. 문제 정의
+
+### 핵심 문제
+
+_작성 중..._
+
+### 문제 영향
+
+_작성 중..._
+
+### 기존 해결 방법
+
+_작성 중..._
+
+### 기존 솔루션 한계
+
+_작성 중..._
+
+
+## 3. 타겟 사용자
+
+### 타겟 그룹
+
+_작성 중..._
+
+### 타겟 상세 프로필
+
+_작성 중..._
+
+
+## 4. 핵심 가치 제안
+
+### 차별화 포인트
+
+_작성 중..._
+
+
+## 5. 비즈니스 모델
+
+### 수익 모델
+
+_작성 중..._
+
+### 무료/유료 구분
+
+_작성 중..._
+
+### 가격 정책
+
+_작성 중..._
+
+### 전환 전략
+
+_작성 중..._
+
+
+## 6. 핵심 기능
+
+### 핵심 기능 3개
+
+_작성 중..._
+
+### 기능별 설명
+
+_작성 중..._
+
+
+## 7. MVP 범위
+
+### MVP 범위
+
+_작성 중..._
+
+
+## 8. 성공 지표 (KPI)
+
+### 핵심 지표
+
+_작성 중..._
+
+### 목표 수치
+
+_작성 중..._
+
+
+## 9. 출시 계획
+
+### 출시 일정
+
+_작성 중..._
+
+
+## 10. 리스크 및 대응
+
+### 주요 리스크
+
+_작성 중..._
+
+
+---
+
+**다음 단계**: 채팅을 통해 질문에 답변하시면 이 템플릿이 자동으로 채워집니다.
+`;
+
+    setArtifact({
+      currentIndex: 0,
+      contents: [
+        {
+          index: 0,
+          type: 'text',
+          title: 'PRD 템플릿 (표준)',
+          fullMarkdown: initialMarkdown
+        }
+      ]
+    });
     setFirstTokenReceived(true);
   };
 
@@ -341,12 +666,42 @@ export function GraphProvider({ children }: { children: ReactNode }) {
     setIsStreaming(true);
     setRunId(undefined);
     setFeedbackSubmitted(false);
+
+    // Add user's message to local state if it's not already there
+    if (params.messages && params.messages.length > 0) {
+      const latestMessage = params.messages[params.messages.length - 1];
+      // Check if this is a human/user message
+      const isHumanMessage =
+        (typeof latestMessage._getType === "function" && latestMessage._getType() === "human") ||
+        (latestMessage.type === "human") ||
+        (latestMessage.role === "user");
+
+      if (isHumanMessage) {
+        setMessages((prev) => {
+          const latestInPrev = prev[prev.length - 1];
+          // Convert to BaseMessage if needed
+          const messageToAdd = latestMessage as BaseMessage;
+          // Only add if this message is not already in state
+          if (!latestInPrev || getMessageSignature(latestInPrev) !== getMessageSignature(messageToAdd)) {
+            return [...prev, messageToAdd];
+          }
+          return prev;
+        });
+      }
+    }
+
     // The root level run ID of this stream
     let runId = "";
     let followupMessageId = "";
     // The ID of the message containing the thinking content.
     let thinkingMessageId = "";
-    const PRD_GRAPH_NODES = ["ask_question", "update_prd", "generate_final_prd"];
+    const PRD_GRAPH_NODES = [
+      "ask_onboarding",
+      "generate_question",
+      "process_answer",
+      "update_prd",
+      "generate_final_prd"
+    ];
 
     try {
       const workerService = new StreamWorkerService();
@@ -847,21 +1202,31 @@ export function GraphProvider({ children }: { children: ReactNode }) {
           }
 
           if (event === "on_chain_end") {
-            if (PRD_GRAPH_NODES.includes(langgraphNode)) {
-              const output = extractStreamDataOutput(nodeOutput);
-              const outputMessages = (output?.messages ||
-                []) as BaseMessage[];
-              const outputArtifact = output?.artifact as ArtifactV3 | undefined;
+            const output = extractStreamDataOutput(nodeOutput);
+            const outputMessages = (output?.messages || []) as BaseMessage[];
+            const outputArtifact = output?.artifact as ArtifactV3 | undefined;
 
-              if (outputMessages.length) {
+            if (outputMessages.length) {
+              setMessages((prev) => {
+                const existingSignatures = new Set(
+                  prev.map((msg) => getMessageSignature(msg))
+                );
+                const newMessages = outputMessages.filter(
+                  (msg) => !existingSignatures.has(getMessageSignature(msg))
+                );
+
+                if (!newMessages.length) {
+                  return prev;
+                }
+
                 setFirstTokenReceived(true);
                 setChatStarted(true);
-                setMessages((prev) => [...prev, ...outputMessages]);
-              }
+                return [...prev, ...newMessages];
+              });
+            }
 
-              if (outputArtifact) {
-                setArtifact(outputArtifact);
-              }
+            if (PRD_GRAPH_NODES.includes(langgraphNode) && outputArtifact) {
+              setArtifact(outputArtifact);
             }
           }
 
@@ -1449,6 +1814,8 @@ export function GraphProvider({ children }: { children: ReactNode }) {
       chatStarted,
       artifactUpdateFailed,
       searchEnabled,
+      activeTab,
+      setActiveTab,
       setSearchEnabled,
       setChatStarted,
       setIsStreaming,

@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+"use client";
+
 import "./globals.css";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -7,11 +8,6 @@ import { NuqsAdapter } from "nuqs/adapters/next/app";
 const inter = Inter({
   subsets: ["latin"],
 });
-
-export const metadata: Metadata = {
-  title: "Open Canvas",
-  description: "LangChain의 Open Canvas 채팅 UX",
-};
 
 export default function RootLayout({
   children,

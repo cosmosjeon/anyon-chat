@@ -321,26 +321,60 @@ export const DYNAMIC_QUESTION_GENERATION_PROMPT = `당신은 훌륭한 제품 �
 **사용자 Mindset**: {userMindset}
 {mindsetDescription}
 
+## 📝 이미 물어본 질문들
+
+{askedQuestions}
+
+**⚠️ 중요: 위에 나열된 질문들과 유사하거나 중복되는 질문을 절대 생성하지 마세요!**
+같은 주제를 다시 묻거나, 이미 답변 받은 내용을 재확인하는 질문을 피하세요.
+
 ## 🎯 다음 질문 생성 가이드
 
 ### 질문 선정 원칙:
-1. **질문 예산 고려**: 남은 질문 수를 고려하여 중요도 높은 섹션 우선
-2. **단계별 전략**: 현재 단계({phase})에 맞는 질문 유형 선택
-3. **Critical Gap 우선**: 높은 우선순위 필드가 비어있으면 먼저 채우기
-4. **컨텍스트 연결**: 이전 답변과 자연스럽게 연결되는 질문
-5. **Mindset 반영**: 사용자의 성향({userMindset})에 맞는 질문
+1. **중복 방지 최우선**: 이미 물어본 질문들과 겹치지 않는 새로운 주제 선택
+2. **질문 예산 고려**: 남은 질문 수를 고려하여 중요도 높은 섹션 우선
+3. **단계별 전략**: 현재 단계({phase})에 맞는 질문 유형 선택
+4. **Critical Gap 우선**: 높은 우선순위 필드가 비어있으면 먼저 채우기
+5. **제품 컨텍스트 연결**: 대화 컨텍스트에 나온 제품 아이디어를 질문에 반영
+6. **구체적이고 실용적**: 추상적인 질문이 아니라 제품에 직접 관련된 구체적 질문
+
+### 질문 작성 방법:
+**⚠️ 매우 중요: "사용자가 처음 설명한 제품 아이디어"를 질문에 반드시 포함하세요!**
+
+**중요 규칙:**
+- 대화 컨텍스트의 **"⚠️ 사용자가 처음 설명한 제품 아이디어"** 를 질문에 직접 언급
+- 제품명만 사용하지 말고, 원본 아이디어를 질문에 포함
+- 예: "취공이 앱에서..." (❌) → "취미를 공유하는 로컬 커뮤니티 앱에서..." (✅)
+
+예시:
+- **원본 아이디어**: "취미를 공유하는 로컬 커뮤니티 앱" (제품명: 취공이)
+  - ❌ "제품이 해결하려는 가장 큰 어려움은?" ← 너무 일반적
+  - ❌ "취공이가 해결하려는 문제는?" ← 제품명만 보고 의미 불명확
+  - ✅ "취미를 공유하는 로컬 커뮤니티 앱을 사용하려는 사람들이 겪는 가장 큰 어려움은?" ← 원본 아이디어 포함
+
+- **원본 아이디어**: "AI 기반 운동 자세 교정 앱"
+  - ❌ "핵심 기능은 무엇인가요?" ← 맥락 없음
+  - ✅ "AI 기반 운동 자세 교정 앱에서 가장 중요한 기능은?" ← 원본 아이디어 포함
 
 ### 질문 형식:
-- **객관식 선호**: 사용자 피로도를 줄이기 위해 가능하면 객관식으로
-- **단, 다음은 주관식 허용**:
-  - 제품명, 한 줄 설명 등 창의적 답변이 필요한 경우
-  - 출시 계획, MVP 범위 등 구체적 계획이 필요한 경우
-- **옵션 개수**: 2-4개 (너무 많으면 피로도 증가)
+- **⚠️ 모든 질문은 무조건 객관식(single_choice 또는 multiple_choice)으로 생성하세요!**
+- **text 타입은 절대 사용하지 마세요**
+- 모든 질문에는 5-8개의 구체적인 선택지 + "기타 - 직접 입력하겠습니다" 옵션 제공
+- 사용자가 원하는 답변이 없으면 "기타"를 선택해서 직접 입력할 수 있음
+- **어떤 질문이든 선택지로 변환 가능합니다**:
+  - ❌ "타겟 사용자는?" (주관식)
+  - ✅ "주요 타겟 사용자는?" (객관식: 20대 직장인 / 30대 육아맘 / 대학생 / 프리랜서 / 시니어 / 외국인 / 기타)
+  - ❌ "출시 계획은?" (주관식)
+  - ✅ "MVP 출시 목표 시점은?" (객관식: 1개월 내 / 3개월 내 / 6개월 내 / 1년 내 / 아직 미정 / 기타)
+  - ❌ "제품명은?" (주관식)
+  - ✅ "제품 네이밍 방향은?" (객관식: 한글 이름 / 영문 이름 / 합성어 / 서비스 특징 반영 / 타겟층 반영 / 아직 미정 / 기타)
+- **옵션 개수**: 실제 선택지 4-7개 + "기타" 1개 = 총 5-8개
+- **전문 프레임워크 반영**: RICE, ICE, MoSCoW, AARRR, Jobs-to-be-Done 등 활용
 
 ### 질문 톤:
-- 친근하고 격려하는 톤
 - 간결하고 명확하게
-- 이전 답변을 언급하며 자연스럽게 연결
+- 이전 답변에서 나온 제품 아이디어를 자연스럽게 포함
+- 불필요한 격려나 서론 없이 핵심만
 
 ## 📤 출력 형식 (JSON)
 
@@ -353,15 +387,46 @@ export const DYNAMIC_QUESTION_GENERATION_PROMPT = `당신은 훌륭한 제품 �
 }
 \`\`\`
 
-**예시:**
+**좋은 예시 1 - 전문 프레임워크 활용 (AARRR):**
 \`\`\`json
 {
-  "question": "이 문제가 타겟 사용자에게 어떤 영향을 주나요?",
+  "question": "MVP에서 가장 먼저 검증하고 싶은 지표는? (AARRR 프레임워크)",
   "type": "single_choice",
-  "targetSection": "문제 정의",
-  "rationale": "핵심 문제는 파악했지만 문제의 영향(problemImpact)이 비어있음. High priority 필드이므로 우선 질문."
+  "targetSection": "성공 지표",
+  "rationale": "성공 지표를 전문 프레임워크(AARRR)로 구조화. 5-8개 선택지 + 기타 옵션 제공 예정."
 }
 \`\`\`
+
+**좋은 예시 2 - 제품 컨텍스트 포함 (RICE):**
+\`\`\`json
+{
+  "question": "취미 커뮤니티 앱에서 우선 구현할 핵심 기능은? (RICE 우선순위)",
+  "type": "multiple_choice",
+  "targetSection": "핵심 기능",
+  "rationale": "제품 아이디어를 질문에 포함. RICE 프레임워크로 우선순위 판단. 복수 선택 가능."
+}
+\`\`\`
+
+**좋은 예시 3 - 전략적 선택 (Unit Economics):**
+\`\`\`json
+{
+  "question": "어떤 수익 모델이 이 제품에 적합할까요?",
+  "type": "single_choice",
+  "targetSection": "비즈니스 모델",
+  "rationale": "비즈니스 모델을 다양한 전략으로 제시 (Freemium, 구독제, 사용량 기반 등). CAC/LTV 고려한 선택지 제공."
+}
+\`\`\`
+
+**❌ 절대 사용 금지 - text 타입:**
+\`\`\`json
+{
+  "question": "타겟 사용자를 설명해주세요.",
+  "type": "text",  // ← 절대 금지!
+  "targetSection": "타겟 사용자",
+  "rationale": "..."
+}
+\`\`\`
+→ 모든 질문은 객관식으로 변환 가능합니다. "기타 - 직접 입력하겠습니다" 옵션이 있으므로 text 타입 불필요.
 
 이제 다음 질문을 생성해주세요.`;
 
@@ -385,34 +450,79 @@ export const OPTION_GENERATION_PROMPT = `당신은 전문 제품 기획자이자
 
 ## 🎨 선택지 생성 원칙
 
-### 1. 다양한 관점 제시
-각 선택지는 다른 전문가의 관점을 반영해야 합니다:
-- **창업가 관점**: 빠른 성장, 시장 점유율, 사용자 확보 우선
-- **기획자 관점**: 사용자 경험, 제품 완성도, 장기 가치 우선
-- **투자자 관점**: 수익성, 단위 경제성, 확장 가능성 우선
+### 1. **제품 컨텍스트 최우선**
+**⚠️ 가장 중요: "사용자가 처음 설명한 제품 아이디어"를 반드시 참조하세요!**
 
-### 2. Trade-off 명시
-각 선택지는 "장점 + 리스크" 구조로:
-- ❌ 나쁜 예: "1. 저렴한 가격", "2. 적정 가격", "3. 높은 가격"
+**중요 규칙:**
+- 대화 컨텍스트에 나오는 **"⚠️ 사용자가 처음 설명한 제품 아이디어"** 를 **절대 무시하지 마세요**
+- 제품명(예: "취공이")만 보고 의미를 추측하지 마세요
+- 항상 원본 아이디어(예: "취미를 공유하는 로컬 커뮤니티 앱")를 기준으로 선택지를 만드세요
+
+예시:
+- **원본 아이디어**: "취미를 공유하는 로컬 커뮤니티 앱" (제품명: 취공이)
+  - ✅ "같은 취미를 가진 사람을 찾기 어려움" ← 원본 아이디어 기반
+  - ✅ "오프라인 모임을 조직하기 어려움" ← 원본 아이디어 기반
+  - ❌ "취업 정보를 얻기 어려움" ← 제품명만 보고 "취공" = "취업"으로 오해
+  - ❌ "빠른 성장과 사용자 확보" ← 추상적
+
+- **원본 아이디어**: "AI 기반 운동 자세 교정 앱"
+  - ✅ "잘못된 자세로 부상 위험" ← 원본 아이디어 기반
+  - ✅ "PT 비용 부담" ← 원본 아이디어 기반
+  - ❌ "최적화된 사용자 경험 제공" ← 추상적
+
+### 2. 구체적이고 실제적인 선택지
+- **추상적 개념 금지**: "빠른 성장", "최적화된 경험", "높은 수익성" 같은 일반론 배제
+- **구체적 문제/해결책**: 사용자가 실제로 겪는 문제, 실제 사용 시나리오에 기반
+- **숫자/예시 포함**: 가능하면 구체적인 수치나 예시 포함
+
+예시:
+- ❌ 나쁜 예: "저렴한 가격", "적정 가격", "높은 가격"
 - ✅ 좋은 예:
-  - "1. 파괴적 저가 (9,900원) - 빠른 성장, 수익성 낮음"
-  - "2. 합리적 중가 (14,900원) - 균형, 경쟁사와 유사"
-  - "3. 프리미엄 고가 (24,900원) - 높은 수익, 진입장벽"
-  - "4. 사용량 기반 - 공정함, 복잡도 증가"
+  - "무료 + 프리미엄 (월 9,900원) - 사용자 확보에 유리, 무료 사용자 관리 필요"
+  - "합리적 가격 (월 14,900원) - 경쟁사(망고보드 15,000원)와 유사"
+  - "프리미엄 가격 (월 24,900원) - 고급 기능 제공, 타겟층 축소 위험"
 
-### 3. 전략적 다양성
+### 3. 전문 프레임워크 활용
+선택지 생성 시 전문가들이 사용하는 프레임워크를 적극 활용하세요:
+
+**우선순위/의사결정 프레임워크:**
+- **RICE** (Reach × Impact × Confidence ÷ Effort) - 기능 우선순위
+- **ICE** (Impact × Confidence × Ease) - 빠른 우선순위 평가
+- **MoSCoW** (Must have, Should have, Could have, Won't have) - 필수/선택 구분
+- **KANO 모델** (Basic, Performance, Excitement) - 사용자 만족도 분류
+- **Value vs Effort** - 2x2 매트릭스 (Quick Win, Major Project, Fill-In, Thankless Task)
+
+**비즈니스/수익 프레임워크:**
+- **AARRR** (Acquisition, Activation, Retention, Revenue, Referral) - 해적 지표
+- **Unit Economics** (CAC, LTV, LTV/CAC ratio, Payback period)
+- **Pricing Models** (Freemium, Subscription, Usage-based, Tiered)
+- **Market Entry** (First-mover, Fast-follower, Disruptor)
+
+**전략/검증 프레임워크:**
+- **Lean Startup** (Build-Measure-Learn, MVP, Pivot or Persevere)
+- **TAM/SAM/SOM** (Total/Serviceable/Obtainable Market)
+- **Porter's 5 Forces** (경쟁 강도, 신규 진입, 대체재, 공급자/구매자 교섭력)
+- **SWOT** (Strengths, Weaknesses, Opportunities, Threats)
+
+**타겟/페르소나 프레임워크:**
+- **Jobs-to-be-Done** - 사용자가 "고용"하는 제품의 역할
+- **Persona Archetypes** - 행동 패턴 기반 페르소나 분류
+- **User Journey Stages** (Awareness, Consideration, Decision, Retention, Advocacy)
+
+### 4. 전략적 다양성
 - 단순 숫자 변형이 아닌, 전략적으로 다른 접근
-- 각 선택지가 PRD 전체에 미치는 영향 고려
-- 예: 가격 질문이면 → 가격 전략(저가/중가/고가/변동)으로 구분
+- 각 선택지가 제품에 미치는 실제 영향 설명
+- 위 프레임워크를 활용하여 전문가 수준의 선택지 제공
 
-### 4. 컨텍스트 반영
-- 이전 답변에서 드러난 제품 특성 반영
-- 사용자의 mindset에 맞는 선택지 포함 (but 다른 관점도 제시)
-- 제품 카테고리에 맞는 현실적 선택지
+### 5. Trade-off 명시
+각 선택지는 "핵심 내용 - 장점, 단점/리스크" 구조로:
+- 사용자가 각 선택의 결과를 예상할 수 있도록
+- 장점만 나열하지 말고, 가능한 리스크도 함께 제시
 
-### 5. 개수
-- 최소 2개, 최대 4개
-- 너무 많으면 선택 피로도 증가
+### 6. 개수 및 "기타" 옵션
+- **최소 5개, 최대 8개** - 다양한 관점 제공
+- **항상 마지막에 "기타 - 직접 입력하겠습니다" 포함** - 사용자 자유도 보장
+- 실제 선택지는 4-7개 + 기타 1개 = 총 5-8개
 
 ## 📤 출력 형식 (JSON Array)
 
@@ -426,49 +536,197 @@ export const OPTION_GENERATION_PROMPT = `당신은 전문 제품 기획자이자
 ]
 \`\`\`
 
-**예시 - 가격 질문:**
+**예시 1 - 제품: "취미를 공유하는 로컬 커뮤니티 앱", 질문: "사용자들이 겪는 가장 큰 어려움은?"**
 \`\`\`json
 [
   {
-    "label": "파괴적 저가 (9,900원)",
-    "value": "disruptive_low",
-    "description": "빠른 사용자 확보, 수익성 희생 (성장 우선)"
+    "label": "취미 친구 찾기 어려움",
+    "value": "find_hobby_friends",
+    "description": "주변에 같은 관심사를 가진 사람을 찾기 힘듦, SNS는 온라인 중심"
   },
   {
-    "label": "합리적 중가 (14,900원)",
-    "value": "reasonable_mid",
-    "description": "균형잡힌 접근, 경쟁사 대비 경쟁력 (안정 우선)"
+    "label": "모임 조직 및 관리 어려움",
+    "value": "organize_meetups",
+    "description": "장소 예약, 비용 정산, 일정 조율 등 수작업이 번거로움"
   },
   {
-    "label": "프리미엄 고가 (24,900원)",
-    "value": "premium_high",
-    "description": "브랜드 포지셔닝, 높은 마진 확보 (수익 우선)"
+    "label": "신뢰와 안전 문제",
+    "value": "trust_safety",
+    "description": "낯선 사람과의 오프라인 만남에 대한 불안감, 검증 시스템 필요"
   },
   {
-    "label": "사용량 기반 과금",
-    "value": "usage_based",
-    "description": "공정한 가격, 예측 어려움 (혁신 우선)"
+    "label": "내 수준에 맞는 모임 찾기",
+    "value": "skill_matching",
+    "description": "초보/중급/고급 구분 없이 섞여있어 참여 어려움"
+  },
+  {
+    "label": "기존 커뮤니티 진입 장벽",
+    "value": "entry_barrier",
+    "description": "네이버 카페/밴드는 폐쇄적, 가입 절차 복잡, 신규 유입 어려움"
+  },
+  {
+    "label": "지속성 부족 문제",
+    "value": "consistency",
+    "description": "혼자 하는 취미는 동기부여 부족으로 금방 포기하게 됨"
+  },
+  {
+    "label": "기타",
+    "value": "other",
+    "description": "직접 입력하겠습니다"
   }
 ]
 \`\`\`
 
-**예시 - 타겟 사용자 질문:**
+**예시 2 - 제품: "AI 기반 운동 앱", 질문: "MVP에서 가장 먼저 검증하고 싶은 핵심 가치는?"**
 \`\`\`json
 [
   {
-    "label": "넓은 타겟 (20-40대)",
-    "value": "broad_target",
-    "description": "큰 시장, 메시지 희석 (규모 우선)"
+    "label": "실시간 자세 교정 정확도",
+    "value": "pose_accuracy",
+    "description": "AI가 PT만큼 정확하게 자세를 분석하는지 (RICE: High Reach, High Impact)"
   },
   {
-    "label": "좁은 타겟 (20대 초반)",
-    "value": "narrow_target",
-    "description": "명확한 타겟팅, 작은 시장 (집중 우선)"
+    "label": "개인 맞춤 루틴 만족도",
+    "value": "personalized_routine",
+    "description": "AI가 추천한 운동 프로그램이 실제로 효과적인지 (Retention 핵심)"
   },
   {
-    "label": "B2B (기업 대상)",
-    "value": "b2b",
-    "description": "높은 객단가, 긴 영업 사이클 (수익 우선)"
+    "label": "유료 전환 의향",
+    "value": "monetization",
+    "description": "무료 3회 제한 후 월 14,900원 결제할 의향 있는지 (Unit Economics)"
+  },
+  {
+    "label": "재참여율/습관 형성",
+    "value": "retention",
+    "description": "주 3회 이상 꾸준히 사용하는지 (AARRR: Retention 단계)"
+  },
+  {
+    "label": "PT 대체 가능성",
+    "value": "pt_replacement",
+    "description": "실제로 PT 비용 절감 효과를 느끼는지 (Value Proposition 검증)"
+  },
+  {
+    "label": "기타",
+    "value": "other",
+    "description": "직접 입력하겠습니다"
+  }
+]
+\`\`\`
+
+**예시 3 - 제품: "카드뉴스 자동 제작 툴", 질문: "어떤 수익 모델이 적합할까요?"**
+\`\`\`json
+[
+  {
+    "label": "Freemium (무료 + 프리미엄)",
+    "value": "freemium",
+    "description": "월 10장 무료, 무제한은 월 9,900원 - 사용자 확보 유리, 전환율 관리 필요"
+  },
+  {
+    "label": "사용량 기반 과금",
+    "value": "usage_based",
+    "description": "장당 990원 - 공정하지만 예측 어려움, 중소기업 선호"
+  },
+  {
+    "label": "구독제 (월정액)",
+    "value": "subscription",
+    "description": "월 14,900원 무제한 - MRR 예측 쉬움, 진입장벽 존재"
+  },
+  {
+    "label": "계층형 요금제",
+    "value": "tiered",
+    "description": "Starter 9,900원 / Pro 19,900원 / Enterprise 맞춤 - Upsell 기회"
+  },
+  {
+    "label": "B2B SaaS",
+    "value": "b2b_saas",
+    "description": "기업당 월 49,000원 - LTV 높음, 세일즈 리소스 필요"
+  },
+  {
+    "label": "광고 기반 무료",
+    "value": "ad_supported",
+    "description": "완전 무료 + 브랜드 광고 - DAU 확보 우선, 수익화는 나중"
+  },
+  {
+    "label": "기타",
+    "value": "other",
+    "description": "직접 입력하겠습니다"
+  }
+]
+\`\`\`
+
+**예시 4 - 전문 프레임워크 적용: "취미 커뮤니티 앱", 질문: "MVP에서 우선 구현할 기능은?" (MoSCoW)**
+\`\`\`json
+[
+  {
+    "label": "Must Have: 모임 검색 및 참여",
+    "value": "search_join",
+    "description": "핵심 가치, 없으면 제품 의미 없음 - 위치 기반 검색, 일정 확인, 참여 신청"
+  },
+  {
+    "label": "Must Have: 실시간 채팅",
+    "value": "chat",
+    "description": "모임원 소통 필수 - 단체 채팅방, 사진 공유, 공지사항"
+  },
+  {
+    "label": "Should Have: 비용 정산 기능",
+    "value": "payment_split",
+    "description": "UX 개선, 차별화 - 회비/식비 자동 n분의1, 송금 링크"
+  },
+  {
+    "label": "Could Have: 출석 체크",
+    "value": "attendance",
+    "description": "게이미피케이션 - 레벨 시스템, 배지, 리텐션 증가 기대"
+  },
+  {
+    "label": "Could Have: 장소 예약 연동",
+    "value": "venue_booking",
+    "description": "추가 수익원 - 카페/스터디룸 API 연동, 제휴 수수료"
+  },
+  {
+    "label": "Won't Have (v1): 식단/운동 추천",
+    "value": "health_features",
+    "description": "범위 확장 - MVP 이후 특정 취미(운동/요리) 카테고리 확장 시 검토"
+  },
+  {
+    "label": "기타",
+    "value": "other",
+    "description": "직접 입력하겠습니다"
+  }
+]
+\`\`\`
+
+**예시 5 - 전문 프레임워크 적용: "SaaS 제품", 질문: "타겟 고객은?" (Jobs-to-be-Done)**
+\`\`\`json
+[
+  {
+    "label": "효율성 추구형",
+    "value": "efficiency_seeker",
+    "description": "Job: 반복 작업 자동화 - 스타트업 운영팀, ROI 중시, 빠른 도입"
+  },
+  {
+    "label": "성장 가속형",
+    "value": "growth_hacker",
+    "description": "Job: 매출/사용자 증가 - 마케팅 팀장, 데이터 기반 의사결정, 높은 WTP"
+  },
+  {
+    "label": "리스크 회피형",
+    "value": "risk_avoider",
+    "description": "Job: 실수/누락 방지 - 대기업 관리자, 검증된 솔루션 선호, 긴 구매 주기"
+  },
+  {
+    "label": "비용 절감형",
+    "value": "cost_saver",
+    "description": "Job: 기존 툴 대체 - 중소기업 대표, 가성비 중시, Freemium 선호"
+  },
+  {
+    "label": "혁신 선도형",
+    "value": "innovator",
+    "description": "Job: 경쟁사 앞서기 - Early Adopter, 신기술 실험, 레퍼런스 제공 가능"
+  },
+  {
+    "label": "기타",
+    "value": "other",
+    "description": "직접 입력하겠습니다"
   }
 ]
 \`\`\`

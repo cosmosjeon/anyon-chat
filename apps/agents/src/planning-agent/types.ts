@@ -2,7 +2,7 @@
  * PRD Questionnaire Types
  */
 
-import { TemplateLevel } from "./prd-checklist";
+export type { TemplateLevel } from "./prd-checklist";
 
 export type UserMindset = "growth_focused" | "profit_focused" | "quality_focused" | "balanced";
 
@@ -44,6 +44,7 @@ export interface DynamicQuestion {
  * Conversation Context for Dynamic Question Generation
  */
 export interface ConversationContext {
+  originalIdea?: string; // User's FIRST description of the product idea (most important!)
   product?: string; // Product name/description
   problem?: string; // Core problem being solved
   target?: string; // Target users

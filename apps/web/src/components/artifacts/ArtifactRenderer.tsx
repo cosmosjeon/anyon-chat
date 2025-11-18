@@ -305,6 +305,8 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
     currentArtifactContent.index === artifact.contents.length ||
     isStreaming;
 
+  const { activeTab: _activeTab } = graphData;
+
   return (
     <div className="relative w-full h-full max-h-screen overflow-auto">
       <ArtifactHeader
@@ -319,6 +321,8 @@ function ArtifactRendererComponent(props: ArtifactRendererProps) {
         chatCollapsed={props.chatCollapsed}
         setChatCollapsed={props.setChatCollapsed}
       />
+
+      {/* Canvas content - same for both PRD and Scenario tabs */}
       <div
         ref={contentRef}
         className={cn(
