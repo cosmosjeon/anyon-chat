@@ -1,12 +1,11 @@
 import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
-import { Answer, PRDData, ConversationContext, DynamicQuestion } from "./types";
+import { Answer, DynamicQuestion, UserFlowContext, UserFlowData } from "./types";
 import { ArtifactV3 } from "@opencanvas/shared/types";
-import { TemplateLevel } from "./prd-checklist";
 
 /**
- * PRD Questionnaire Graph State
+ * User Flow Agent Graph State
  */
-export const PRDQuestionnaireAnnotation = Annotation.Root({
+export const UserFlowAnnotation = Annotation.Root({
   /**
    * Inherit messages from MessagesAnnotation
    * This allows the graph to work with the existing open-canvas infrastructure
@@ -14,19 +13,21 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
   ...MessagesAnnotation.spec,
 
   /**
-   * Template level selected by user (simple/standard/detailed)
+   * Completed PRD content from Planning Agent
+   * This is the foundation for generating user flows
    */
-  templateLevel: Annotation<TemplateLevel>({
-    reducer: (prev, update) => update ?? prev ?? "standard",
-    default: () => "standard",
+  prdContent: Annotation<string>({
+    reducer: (_, update) => update ?? "",
+    default: () => "",
   }),
 
   /**
    * Maximum number of questions allowed for this session
+   * Typically ~19 questions based on AI_USERFLOW_QA_EXAMPLE.md
    */
   maxQuestions: Annotation<number>({
-    reducer: (prev, update) => update ?? prev ?? 30,
-    default: () => 30,
+    reducer: (prev, update) => update ?? prev ?? 20,
+    default: () => 20,
   }),
 
   /**
@@ -38,10 +39,10 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
   }),
 
   /**
-   * Conversation context extracted from previous answers
+   * User flow context extracted from previous answers
    * Used for dynamic question generation
    */
-  conversationContext: Annotation<ConversationContext>({
+  userFlowContext: Annotation<UserFlowContext>({
     reducer: (prev, update) => {
       if (!update) return prev || {};
       return { ...(prev || {}), ...update };
@@ -50,7 +51,7 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
   }),
 
   /**
-   * PRD completeness score (0-100)
+   * User flow completeness score (0-100)
    */
   completenessScore: Annotation<number>({
     reducer: (_, update) => update ?? 0,
@@ -62,7 +63,7 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
    */
   currentQuestionId: Annotation<string>({
     reducer: (_, update) => update,
-    default: () => "q1_product_description",
+    default: () => "uf_q1_screen_count",
   }),
 
   /**
@@ -88,9 +89,9 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
   }),
 
   /**
-   * Structured PRD data extracted from answers
+   * Structured user flow data extracted from answers
    */
-  prdData: Annotation<Partial<PRDData>>({
+  userFlowData: Annotation<Partial<UserFlowData>>({
     reducer: (prev, update) => {
       if (!update) return prev || {};
       return { ...(prev || {}), ...update };
@@ -99,17 +100,42 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
   }),
 
   /**
-   * Current PRD markdown content (for artifact)
+   * Current user flow markdown content (for artifact)
    * This gets updated progressively as answers are collected
    */
-  prdContent: Annotation<string>({
+  userFlowContent: Annotation<string>({
     reducer: (_, update) => update,
     default: () => "",
   }),
 
   /**
-   * Artifact containing the PRD document
+   * Text-based user flow scenarios
+   */
+  textFlow: Annotation<string>({
+    reducer: (_, update) => update,
+    default: () => "",
+  }),
+
+  /**
+   * ASCII screen mockups
+   */
+  asciiScreens: Annotation<string>({
+    reducer: (_, update) => update,
+    default: () => "",
+  }),
+
+  /**
+   * Mermaid flow diagram
+   */
+  mermaidDiagram: Annotation<string>({
+    reducer: (_, update) => update,
+    default: () => "",
+  }),
+
+  /**
+   * Artifact containing the user flow document
    * This is displayed in the canvas on the right side
+   * Contains 3 sub-tabs: Text, ASCII, Mermaid
    */
   artifact: Annotation<ArtifactV3 | undefined>({
     reducer: (_, update) => update,
@@ -117,7 +143,7 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
   }),
 
   /**
-   * Whether the graph is waiting for a user's answer to the last question.
+   * Whether the graph is waiting for a user's answer to the last question
    */
   awaitingAnswer: Annotation<boolean>({
     reducer: (_, update) => update ?? false,
@@ -125,7 +151,7 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
   }),
 
   /**
-   * Internal flag to request a follow-up question for more detail.
+   * Internal flag to request a follow-up question for more detail
    */
   needsFollowup: Annotation<boolean>({
     reducer: (_, update) => update ?? false,
@@ -133,7 +159,7 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
   }),
 
   /**
-   * Optional custom question text (e.g., dynamically generated follow-up).
+   * Optional custom question text (e.g., dynamically generated follow-up)
    */
   customQuestionText: Annotation<string | undefined>({
     reducer: (_, update) => update,
@@ -141,7 +167,7 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
   }),
 
   /**
-   * Recently generated dynamic question info.
+   * Recently generated dynamic question info
    */
   latestDynamicQuestion: Annotation<DynamicQuestion | undefined>({
     reducer: (_, update) => update,
@@ -179,45 +205,8 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
     reducer: (_, update) => update,
     default: () => undefined,
   }),
-
-  /**
-   * User Flow phase flag
-   * Indicates if we've moved to user flow generation phase
-   */
-  isUserFlowPhase: Annotation<boolean>({
-    reducer: (_, update) => update ?? false,
-    default: () => false,
-  }),
-
-  /**
-   * User flow context for collecting screen/flow information
-   */
-  userFlowContext: Annotation<Record<string, any>>({
-    reducer: (prev, update) => {
-      if (!update) return prev || {};
-      return { ...(prev || {}), ...update };
-    },
-    default: () => ({}),
-  }),
-
-  /**
-   * User flow question count
-   */
-  userFlowQuestionCount: Annotation<number>({
-    reducer: (prev, update) => update ?? prev ?? 0,
-    default: () => 0,
-  }),
-
-  /**
-   * User flow completeness (0-100)
-   */
-  userFlowCompleteness: Annotation<number>({
-    reducer: (_, update) => update ?? 0,
-    default: () => 0,
-  }),
 });
 
-export type PRDQuestionnaireState =
-  typeof PRDQuestionnaireAnnotation.State;
+export type UserFlowState = typeof UserFlowAnnotation.State;
 
-export type PRDQuestionnaireReturnType = Partial<PRDQuestionnaireState>;
+export type UserFlowReturnType = Partial<UserFlowState>;

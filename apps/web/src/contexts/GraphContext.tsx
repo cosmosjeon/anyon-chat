@@ -1,3 +1,5 @@
+"use client";
+
 import { v4 as uuidv4 } from "uuid";
 import { useUserContext } from "@/contexts/UserContext";
 import {
@@ -16,7 +18,7 @@ import {
   SearchResult,
   TextHighlight,
 } from "@opencanvas/shared/types";
-import { AIMessage, BaseMessage } from "@langchain/core/messages";
+import { AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage } from "@langchain/core/messages";
 import { useRuns } from "@/hooks/useRuns";
 import { createClient } from "@/hooks/utils";
 import { WEB_SEARCH_RESULTS_QUERY_PARAM } from "@/constants";
@@ -667,28 +669,9 @@ _작성 중..._
     setRunId(undefined);
     setFeedbackSubmitted(false);
 
-    // Add user's message to local state if it's not already there
-    if (params.messages && params.messages.length > 0) {
-      const latestMessage = params.messages[params.messages.length - 1];
-      // Check if this is a human/user message
-      const isHumanMessage =
-        (typeof latestMessage._getType === "function" && latestMessage._getType() === "human") ||
-        (latestMessage.type === "human") ||
-        (latestMessage.role === "user");
-
-      if (isHumanMessage) {
-        setMessages((prev) => {
-          const latestInPrev = prev[prev.length - 1];
-          // Convert to BaseMessage if needed
-          const messageToAdd = latestMessage as BaseMessage;
-          // Only add if this message is not already in state
-          if (!latestInPrev || getMessageSignature(latestInPrev) !== getMessageSignature(messageToAdd)) {
-            return [...prev, messageToAdd];
-          }
-          return prev;
-        });
-      }
-    }
+    // Note: User messages are already added to state in content-composer.tsx
+    // before streamMessage is called, so we don't need to add them here again.
+    // This prevents duplicate messages in the UI.
 
     // The root level run ID of this stream
     let runId = "";
@@ -701,6 +684,13 @@ _작성 중..._
       "process_answer",
       "update_prd",
       "generate_final_prd"
+    ];
+
+    const USER_FLOW_GRAPH_NODES = [
+      "ask_userflow_onboarding",
+      "generate_userflow_question",
+      "process_userflow_answer",
+      "generate_final_flow"
     ];
 
     try {
@@ -1208,11 +1198,12 @@ _작성 중..._
 
             if (outputMessages.length) {
               setMessages((prev) => {
-                const existingSignatures = new Set(
-                  prev.map((msg) => getMessageSignature(msg))
+                // Use message IDs instead of signatures to prevent duplicates
+                const existingIds = new Set(
+                  prev.map((msg) => msg.id)
                 );
                 const newMessages = outputMessages.filter(
-                  (msg) => !existingSignatures.has(getMessageSignature(msg))
+                  (msg) => msg.id && !existingIds.has(msg.id)
                 );
 
                 if (!newMessages.length) {
@@ -1227,6 +1218,25 @@ _작성 중..._
 
             if (PRD_GRAPH_NODES.includes(langgraphNode) && outputArtifact) {
               setArtifact(outputArtifact);
+
+              // Auto-transition: PRD complete → User Flow
+              if (langgraphNode === "generate_final_prd") {
+                // Switch to userflow tab
+                setActiveTab("userflow");
+
+                // Start user flow agent automatically
+                // (Will be triggered by next user message or auto-start)
+                console.log("[GraphContext] PRD completed, switched to userflow tab");
+              }
+            }
+
+            if (USER_FLOW_GRAPH_NODES.includes(langgraphNode) && outputArtifact) {
+              setArtifact(outputArtifact);
+
+              // Ensure we're on the userflow tab
+              if (activeTab !== "userflow") {
+                setActiveTab("userflow");
+              }
             }
           }
 
@@ -1734,6 +1744,86 @@ _작성 중..._
     });
   };
 
+  // Helper function to reconstruct LangChain message objects from plain objects
+  const reconstructMessage = (msg: Record<string, any>): BaseMessage => {
+    // If the message already has the proper methods, return it as-is
+    if (typeof msg._getType === "function" || typeof msg.getType === "function") {
+      return msg as BaseMessage;
+    }
+
+    // Only reconstruct on client side
+    if (typeof window === "undefined") {
+      return msg as BaseMessage;
+    }
+
+    // Determine message type
+    let messageType = "human"; // default
+    
+    if (msg.type) {
+      messageType = msg.type;
+    } else if (msg.kwargs?.type) {
+      messageType = msg.kwargs.type;
+    } else if (Array.isArray(msg.id)) {
+      const lastItem = msg.id[msg.id.length - 1];
+      if (lastItem.startsWith("HumanMessage")) {
+        messageType = "human";
+      } else if (lastItem.startsWith("AIMessage")) {
+        messageType = "ai";
+      } else if (lastItem.startsWith("ToolMessage")) {
+        messageType = "tool";
+      } else if (lastItem.startsWith("SystemMessage") || lastItem.startsWith("BaseMessage")) {
+        messageType = "system";
+      }
+    }
+
+    // Add LangSmith URL to tool calls if present
+    if (msg.response_metadata?.langSmithRunURL) {
+      msg.tool_calls = msg.tool_calls ?? [];
+      msg.tool_calls.push({
+        name: "langsmith_tool_ui",
+        args: { sharedRunURL: msg.response_metadata.langSmithRunURL },
+        id: msg.response_metadata.langSmithRunURL
+          ?.split("https://smith.langchain.com/public/")[1]
+          .split("/")[0],
+      });
+    }
+
+    // Reconstruct the appropriate message type
+    switch (messageType) {
+      case "human":
+        return new HumanMessage({
+          content: msg.content ?? msg.kwargs?.content ?? "",
+          id: msg.id,
+          additional_kwargs: msg.additional_kwargs ?? msg.kwargs?.additional_kwargs ?? {},
+        });
+      case "ai":
+        return new AIMessage({
+          content: msg.content ?? msg.kwargs?.content ?? "",
+          id: msg.id,
+          tool_calls: msg.tool_calls ?? msg.kwargs?.tool_calls ?? [],
+          additional_kwargs: msg.additional_kwargs ?? msg.kwargs?.additional_kwargs ?? {},
+        });
+      case "tool":
+        return new ToolMessage({
+          content: msg.content ?? msg.kwargs?.content ?? "",
+          tool_call_id: msg.tool_call_id ?? msg.kwargs?.tool_call_id ?? "",
+          name: msg.name ?? msg.kwargs?.name ?? "",
+        });
+      case "system":
+        return new SystemMessage({
+          content: msg.content ?? msg.kwargs?.content ?? "",
+          id: msg.id,
+        });
+      default:
+        // Fallback to HumanMessage if type is unknown
+        return new HumanMessage({
+          content: msg.content ?? msg.kwargs?.content ?? "",
+          id: msg.id,
+          additional_kwargs: msg.additional_kwargs ?? msg.kwargs?.additional_kwargs ?? {},
+        });
+    }
+  };
+
   const switchSelectedThread = (thread: Thread) => {
     setUpdateRenderedArtifactRequired(true);
     setThreadSwitched(true);
@@ -1783,19 +1873,7 @@ _작성 중..._
     }
     setArtifact(castValues?.artifact);
     setMessages(
-      castValues.messages.map((msg: Record<string, any>) => {
-        if (msg.response_metadata?.langSmithRunURL) {
-          msg.tool_calls = msg.tool_calls ?? [];
-          msg.tool_calls.push({
-            name: "langsmith_tool_ui",
-            args: { sharedRunURL: msg.response_metadata.langSmithRunURL },
-            id: msg.response_metadata.langSmithRunURL
-              ?.split("https://smith.langchain.com/public/")[1]
-              .split("/")[0],
-          });
-        }
-        return msg as BaseMessage;
-      })
+      castValues.messages.map((msg: Record<string, any>) => reconstructMessage(msg))
     );
   };
 

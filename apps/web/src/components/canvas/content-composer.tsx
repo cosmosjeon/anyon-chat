@@ -63,11 +63,17 @@ export function ContentComposerChatInterfaceComponent(
   const [isRunning, setIsRunning] = useState(false);
   const messageRef = useRef<HTMLDivElement>(null);
   const ffmpegRef = useRef(new FFmpeg());
+  const addedMessageIdsRef = useRef<Set<string>>(new Set());
 
   async function onNew(message: AppendMessage): Promise<void> {
+    console.log("[ContentComposer] onNew called with:", message.content?.[0]);
+
     // Explicitly check for false and not ! since this does not provide a default value
     // so we should assume undefined is true.
-    if (message.startRun === false) return;
+    if (message.startRun === false) {
+      console.log("[ContentComposer] onNew skipped: startRun is false");
+      return;
+    }
     if (!userData.user) {
       toast({
         title: "User not found",
@@ -85,6 +91,8 @@ export function ContentComposerChatInterfaceComponent(
       });
       return;
     }
+
+    console.log("[ContentComposer] Processing message, current messages count:", messages.length);
     props.setChatStarted(true);
     setIsRunning(true);
     setIsStreaming(true);
@@ -115,6 +123,15 @@ export function ContentComposerChatInterfaceComponent(
           documents: contentDocuments,
         },
       });
+
+      // Use ref to prevent React Strict Mode from adding the message twice
+      if (addedMessageIdsRef.current.has(humanMessage.id)) {
+        console.warn("[ContentComposer] Message already added (React Strict Mode?), skipping:", humanMessage.id);
+        return;
+      }
+
+      addedMessageIdsRef.current.add(humanMessage.id);
+      console.log("[ContentComposer] Adding new message:", humanMessage.id);
 
       setMessages((prevMessages) => [...prevMessages, humanMessage]);
 

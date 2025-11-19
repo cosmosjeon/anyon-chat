@@ -62,6 +62,48 @@ export function ArtifactHeader(props: ArtifactHeaderProps) {
       {/* Second row: Tabs */}
       <div className="px-4">
         <ArtifactTabs activeTab={activeTab} onTabChange={setActiveTab} />
+
+        {/* Sub-tabs for User Flow (Text/ASCII/Mermaid) */}
+        {activeTab === "userflow" && (
+          <div className="flex flex-row gap-1 mt-2 border-t border-gray-100 pt-2">
+            {props.totalArtifactVersions >= 1 && (
+              <button
+                onClick={() => props.setSelectedArtifact(0)}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors rounded ${
+                  props.currentArtifactContent.index === 0
+                    ? "bg-blue-100 text-blue-700"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                텍스트
+              </button>
+            )}
+            {props.totalArtifactVersions >= 2 && (
+              <button
+                onClick={() => props.setSelectedArtifact(1)}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors rounded ${
+                  props.currentArtifactContent.index === 1
+                    ? "bg-blue-100 text-blue-700"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                ASCII
+              </button>
+            )}
+            {props.totalArtifactVersions >= 3 && (
+              <button
+                onClick={() => props.setSelectedArtifact(2)}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors rounded ${
+                  props.currentArtifactContent.index === 2
+                    ? "bg-blue-100 text-blue-700"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                Mermaid
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

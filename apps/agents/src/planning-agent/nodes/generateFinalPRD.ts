@@ -102,10 +102,15 @@ export async function generateFinalPRD(
     content: `✅ PRD 작성이 완료되었습니다!\n\n오른쪽 캔버스에서 완성된 PRD 문서를 확인하실 수 있습니다.\n\n총 ${answers.length}개의 질문에 답변해주셔서 감사합니다. 이 PRD를 기반으로 제품 개발을 시작하실 수 있습니다.`,
   });
 
+  // Create user flow transition message
+  const transitionMessage = new AIMessage({
+    content: `이제 사용자 플로우를 작성하겠습니다. PRD 내용을 바탕으로 화면 구성과 사용자 흐름을 파악하기 위한 질문을 드릴게요! 🚀`,
+  });
+
   return {
     prdContent: finalPRDContent,
     artifact: finalArtifact,
-    messages: [completionMessage],
+    messages: [completionMessage, transitionMessage],
     isComplete: true,
   };
 }

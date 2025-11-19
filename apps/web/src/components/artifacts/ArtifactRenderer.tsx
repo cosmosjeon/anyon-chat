@@ -1,3 +1,5 @@
+"use client";
+
 import { convertToOpenAIFormat } from "@/lib/convert_messages";
 import { cn } from "@/lib/utils";
 import {

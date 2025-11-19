@@ -29,10 +29,23 @@ export const getMessageType = (message: Record<string, any>): string => {
     return message._getType();
   } else if ("type" in message) {
     return message.type as string;
-  } else {
-    console.error(message);
-    throw new Error("Unsupported message type");
+  } else if ("kwargs" in message && typeof message.kwargs === "object") {
+    // Fallback: Check kwargs.type for deserialized messages
+    if (message.kwargs?.type) {
+      return message.kwargs.type as string;
+    }
   }
+
+  // Final fallback: Try to infer from message structure
+  if ("tool_call_id" in message || "tool_calls" in message) {
+    return "ai";
+  } else if ("content" in message) {
+    // Default to human if we have content but can't determine type
+    return "human";
+  }
+
+  console.error(message);
+  throw new Error("Unsupported message type");
 };
 
 function getMessageContentOrThrow(message: unknown): string {

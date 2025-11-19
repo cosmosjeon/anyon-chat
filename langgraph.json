@@ -9,7 +9,8 @@
     "thread_title": "./apps/agents/src/thread-title/index.ts:graph",
     "summarizer": "./apps/agents/src/summarizer/index.ts:graph",
     "web_search": "./apps/agents/src/web-search/index.ts:graph",
-    "planning": "./apps/agents/src/planning-agent/index.ts:prdQuestionnaireGraph"
+    "planning": "./apps/agents/src/planning-agent/index.ts:prdQuestionnaireGraph",
+    "userflow": "./apps/agents/src/userflow-agent/index.ts:userFlowGraph"
   },
   "env": ".env"
 }

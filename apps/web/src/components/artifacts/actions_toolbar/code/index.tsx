@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useRef, useState } from "react";
 import { MessageCircleCode, Code, ScrollText, Bug, BookA } from "lucide-react";
 import { cn } from "@/lib/utils";
