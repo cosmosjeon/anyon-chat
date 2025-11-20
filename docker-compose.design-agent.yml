@@ -1,0 +1,115 @@
+# ================================================================
+# Docker Compose for Design Agent Integration
+# ================================================================
+# This docker-compose file adds the Design Agent service to the
+# existing anyon-chat infrastructure.
+#
+# Usage:
+#   docker-compose -f docker-compose.design-agent.yml up -d
+#
+# ================================================================
+
+version: '3.8'
+
+services:
+  # ================================================================
+  # Design Agent Service (Python/FastAPI)
+  # ================================================================
+  design-agent:
+    build:
+      context: ../Design Agent
+      dockerfile: Dockerfile
+    container_name: anyon-design-agent
+    ports:
+      - "8000:8000"  # Design Agent API
+    environment:
+      # Database connection (shared with anyon-chat)
+      DATABASE_URL: ${DATABASE_URL}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+
+      # Redis for caching
+      REDIS_URL: redis://redis:6379
+
+      # LLM API keys
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+
+      # Service configuration
+      WORKERS: 2
+      LOG_LEVEL: info
+
+      # ANYON integration
+      ANYON_CALLBACK_URL: ${ANYON_URL:-http://localhost:3000}
+
+    depends_on:
+      - redis
+    volumes:
+      # Mount Design Agent source code for development
+      - ../Design Agent/src:/app/src
+      - ../Design Agent/generated_outputs:/app/generated_outputs
+    networks:
+      - anyon-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ================================================================
+  # Redis Cache (for Design Agent)
+  # ================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: anyon-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - anyon-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # ================================================================
+  # Design Agent Worker (Optional: for background jobs)
+  # ================================================================
+  design-agent-worker:
+    build:
+      context: ../Design Agent
+      dockerfile: Dockerfile
+    container_name: anyon-design-worker
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: redis://redis:6379
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      WORKER_MODE: "true"
+    depends_on:
+      - redis
+      - design-agent
+    volumes:
+      - ../Design Agent/src:/app/src
+    networks:
+      - anyon-network
+    restart: unless-stopped
+    command: python -m src.workers.job_processor
+
+# ================================================================
+# Networks
+# ================================================================
+networks:
+  anyon-network:
+    driver: bridge
+
+# ================================================================
+# Volumes
+# ================================================================
+volumes:
+  redis-data:
+    driver: local

@@ -1,0 +1,170 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, Circle, Loader2 } from "lucide-react";
+
+interface AgentDashboardProps {
+  sessionId: string;
+}
+
+interface AgentSession {
+  session_id: string;
+  current_agent: string;
+  status: string;
+  planning_thread_id?: string;
+  design_job_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export function AgentDashboard({ sessionId }: AgentDashboardProps) {
+  const { data: sessionData, isLoading } = useQuery({
+    queryKey: ["agentSession", sessionId],
+    queryFn: async () => {
+      const response = await fetch(`/api/orchestrator/sessions?sessionId=${sessionId}`);
+      if (!response.ok) throw new Error("Failed to fetch session");
+      const data = await response.json();
+      return data.session as AgentSession;
+    },
+    refetchInterval: 5000, // Poll every 5 seconds
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!sessionData) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        Session not found
+      </div>
+    );
+  }
+
+  const agents = [
+    {
+      name: "Planning",
+      key: "planning",
+      description: "PRD & User Flow Generation",
+      icon: "📋",
+    },
+    {
+      name: "Design",
+      key: "design",
+      description: "UI/UX Design & Documentation",
+      icon: "🎨",
+    },
+    {
+      name: "Development",
+      key: "development",
+      description: "Code Generation (Coming Soon)",
+      icon: "💻",
+    },
+  ];
+
+  const getAgentStatus = (agentKey: string) => {
+    const status = sessionData.status.toLowerCase();
+    const currentAgent = sessionData.current_agent;
+
+    if (status.includes(agentKey)) {
+      if (status.includes("complete")) return "completed";
+      return "active";
+    }
+
+    if (currentAgent === agentKey) return "active";
+
+    // Check if this agent comes before the current agent
+    const agentOrder = ["planning", "design", "development"];
+    const currentIndex = agentOrder.indexOf(currentAgent);
+    const thisIndex = agentOrder.indexOf(agentKey);
+
+    if (thisIndex < currentIndex) return "completed";
+    return "pending";
+  };
+
+  const getProgress = (agentKey: string) => {
+    const status = getAgentStatus(agentKey);
+    if (status === "completed") return 100;
+    if (status === "pending") return 0;
+
+    // For active agent, we'd need to fetch more detailed progress
+    // For now, show 50%
+    return 50;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Multi-Agent Workflow</h2>
+        <Badge variant={sessionData.status.includes("complete") ? "default" : "outline"}>
+          {sessionData.status.replace(/_/g, " ").toUpperCase()}
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {agents.map((agent) => {
+          const status = getAgentStatus(agent.key);
+          const progress = getProgress(agent.key);
+
+          return (
+            <Card
+              key={agent.key}
+              className={
+                status === "active"
+                  ? "border-blue-500 border-2"
+                  : status === "completed"
+                    ? "border-green-500"
+                    : ""
+              }
+            >
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <span>{agent.icon}</span>
+                    <span>{agent.name}</span>
+                  </CardTitle>
+                  {status === "active" && (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                  )}
+                  {status === "completed" && (
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  )}
+                  {status === "pending" && (
+                    <Circle className="h-4 w-4 text-gray-300" />
+                  )}
+                </div>
+                <CardDescription>{agent.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <Progress value={progress} className="h-2" />
+                  <p className="text-sm text-muted-foreground">{progress}% complete</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {sessionData.design_job_id && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Design Agent Details</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Job ID: <code className="bg-muted px-1 py-0.5 rounded">{sessionData.design_job_id}</code>
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

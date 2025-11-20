@@ -1,7 +1,30 @@
-import { Annotation, MessagesAnnotation } from "@langchain/langgraph";
+import { Annotation, MessagesAnnotation, messagesStateReducer } from "@langchain/langgraph";
+import { BaseMessage } from "@langchain/core/messages";
 import { Answer, PRDData, ConversationContext, DynamicQuestion } from "./types";
 import { ArtifactV3 } from "@opencanvas/shared/types";
 import { TemplateLevel } from "./prd-checklist";
+import { OC_SUMMARIZED_MESSAGE_KEY } from "@opencanvas/shared/constants";
+
+/**
+ * Type for messages passed to the model
+ */
+export type Messages =
+  | Array<BaseMessage>
+  | BaseMessage;
+
+/**
+ * Helper to check if a message is a summary message
+ */
+function isSummaryMessage(msg: unknown): boolean {
+  if (typeof msg !== "object" || Array.isArray(msg) || !msg) return false;
+
+  if (!("additional_kwargs" in msg) && !("kwargs" in msg)) return false;
+
+  const kwargs = "additional_kwargs" in msg ? msg.additional_kwargs : (msg as any).kwargs;
+  if (!kwargs || typeof kwargs !== "object") return false;
+
+  return OC_SUMMARIZED_MESSAGE_KEY in kwargs;
+}
 
 /**
  * PRD Questionnaire Graph State
@@ -12,6 +35,26 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
    * This allows the graph to work with the existing open-canvas infrastructure
    */
   ...MessagesAnnotation.spec,
+
+  /**
+   * The list of messages passed to the model. Can include summarized messages,
+   * and others which are NOT shown to the user.
+   */
+  _messages: Annotation<BaseMessage[], Messages>({
+    reducer: (state, update) => {
+      const latestMsg = Array.isArray(update)
+        ? update[update.length - 1]
+        : update;
+
+      if (isSummaryMessage(latestMsg)) {
+        // The state list has been updated by a summary message. Clear the existing state messages.
+        return messagesStateReducer([], update);
+      }
+
+      return messagesStateReducer(state, update);
+    },
+    default: () => [],
+  }),
 
   /**
    * Template level selected by user (simple/standard/detailed)
@@ -214,6 +257,30 @@ export const PRDQuestionnaireAnnotation = Annotation.Root({
   userFlowCompleteness: Annotation<number>({
     reducer: (_, update) => update ?? 0,
     default: () => 0,
+  }),
+
+  /**
+   * User Flow content (from userflow-agent)
+   */
+  userFlowContent: Annotation<string>({
+    reducer: (_, update) => update ?? "",
+    default: () => "",
+  }),
+
+  /**
+   * Design Agent job ID (after triggering design phase)
+   */
+  designJobId: Annotation<string | undefined>({
+    reducer: (_, update) => update,
+    default: () => undefined,
+  }),
+
+  /**
+   * Error message if any step fails
+   */
+  errorMessage: Annotation<string | undefined>({
+    reducer: (_, update) => update,
+    default: () => undefined,
   }),
 });
 

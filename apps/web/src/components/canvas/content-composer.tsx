@@ -125,13 +125,14 @@ export function ContentComposerChatInterfaceComponent(
       });
 
       // Use ref to prevent React Strict Mode from adding the message twice
-      if (addedMessageIdsRef.current.has(humanMessage.id)) {
-        console.warn("[ContentComposer] Message already added (React Strict Mode?), skipping:", humanMessage.id);
+      const messageId = humanMessage.id || uuidv4();
+      if (addedMessageIdsRef.current.has(messageId)) {
+        console.warn("[ContentComposer] Message already added (React Strict Mode?), skipping:", messageId);
         return;
       }
 
-      addedMessageIdsRef.current.add(humanMessage.id);
-      console.log("[ContentComposer] Adding new message:", humanMessage.id);
+      addedMessageIdsRef.current.add(messageId);
+      console.log("[ContentComposer] Adding new message:", messageId);
 
       setMessages((prevMessages) => [...prevMessages, humanMessage]);
 

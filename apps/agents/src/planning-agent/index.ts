@@ -5,6 +5,7 @@ import { generateQuestion } from "./nodes/generateQuestion";
 import { processAnswer } from "./nodes/processAnswer";
 import { updatePRD } from "./nodes/updatePRD";
 import { generateFinalPRD } from "./nodes/generateFinalPRD";
+import { triggerDesignAgent } from "./nodes/triggerDesignAgent";
 
 // Import User Flow nodes
 import { askOnboarding as askUserFlowOnboarding } from "../userflow-agent/nodes/askOnboarding";
@@ -99,6 +100,7 @@ const builder = new StateGraph(PRDQuestionnaireAnnotation)
   .addNode("process_answer", processAnswer)
   .addNode("update_prd", updatePRD)
   .addNode("generate_final_prd", generateFinalPRD)
+  .addNode("trigger_design_agent", triggerDesignAgent)
 
   // Add User Flow nodes
   .addNode("ask_userflow_onboarding", async (state: PRDQuestionnaireState) => {
@@ -246,8 +248,11 @@ const builder = new StateGraph(PRDQuestionnaireAnnotation)
     generate_userflow_question: "generate_userflow_question",
   })
 
-  // After generating final flow, we're done
-  .addEdge("generate_final_flow", END);
+  // After generating final flow, trigger Design Agent
+  .addEdge("generate_final_flow", "trigger_design_agent")
+
+  // After triggering design agent, we're done
+  .addEdge("trigger_design_agent", END);
 
 // Compile the graph
 export const graph = builder.compile();

@@ -141,7 +141,7 @@ function getMessageText(message: BaseMessage): string {
   return "";
 }
 
-function getMessageSignature(message: BaseMessage) {
+function _getMessageSignature(message: BaseMessage) {
   const type =
     typeof message.getType === "function"
       ? message.getType()
@@ -161,7 +161,8 @@ export function GraphProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<BaseMessage[]>([]);
   const [artifact, setArtifact] = useState<ArtifactV3 | undefined>(() => {
     // Initial empty PRD template (Standard level)
-    const today = new Date().toISOString().split('T')[0];
+    // Use static date to prevent SSR hydration mismatch - agent will update with real date
+    const today = "작성 대기중";
     const initialMarkdown = `# 프로젝트 요구사항 (PRD)
 
 **템플릿 레벨**: 표준
@@ -340,9 +341,17 @@ _작성 중..._
       !assistantsData.selectedAssistant &&
       !assistantsData.isLoadingAllAssistants
     ) {
-      assistantsData.getOrCreateAssistant(userData.user.id);
+      assistantsData.getOrCreateAssistant(userData.user.id).catch((error) => {
+        console.error("Failed to get or create assistant:", error);
+        toast({
+          title: "Error",
+          description: "Failed to initialize assistant. Please refresh the page.",
+          variant: "destructive",
+          duration: 5000,
+        });
+      });
     }
-  }, [userData.user]);
+  }, [userData.user, assistantsData.selectedAssistant, assistantsData.isLoadingAllAssistants]);
 
   // Very hacky way of ensuring updateState is not called when a thread is switched
   useEffect(() => {
@@ -595,13 +604,58 @@ _작성 중..._
     setFirstTokenReceived(false);
     setError(false);
     if (!assistantsData.selectedAssistant) {
-      toast({
-        title: "Error",
-        description: "No assistant ID found",
-        variant: "destructive",
-        duration: 5000,
-      });
-      return;
+      // If still loading assistants, wait and don't show error yet
+      if (assistantsData.isLoadingAllAssistants) {
+        toast({
+          title: "Loading",
+          description: "Assistant is initializing, please wait...",
+          duration: 3000,
+        });
+        return;
+      }
+
+      // If no assistant and not loading, try to create one now
+      if (userData.user) {
+        toast({
+          title: "Initializing",
+          description: "Creating your assistant, please wait...",
+          duration: 3000,
+        });
+        try {
+          await assistantsData.getOrCreateAssistant(userData.user.id);
+          // If successful, the assistant will be set and we can continue
+          // But we need to wait a moment for the state to update
+          await new Promise(resolve => setTimeout(resolve, 500));
+
+          // Check again after creation attempt
+          if (!assistantsData.selectedAssistant) {
+            toast({
+              title: "Error",
+              description: "Failed to initialize assistant. Please refresh the page.",
+              variant: "destructive",
+              duration: 5000,
+            });
+            return;
+          }
+        } catch (error) {
+          console.error("Failed to create assistant:", error);
+          toast({
+            title: "Error",
+            description: "Failed to initialize assistant. Please refresh the page.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          return;
+        }
+      } else {
+        toast({
+          title: "Error",
+          description: "No user found. Please log in again.",
+          variant: "destructive",
+          duration: 5000,
+        });
+        return;
+      }
     }
 
     let currentThreadId = threadData.threadId;

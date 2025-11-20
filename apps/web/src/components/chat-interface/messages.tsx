@@ -21,12 +21,13 @@ import { FeedbackButton } from "./feedback";
 import { TighterText } from "../ui/header";
 import { useFeedback } from "@/hooks/useFeedback";
 import { ContextDocumentsUI } from "../tool-hooks/AttachmentsToolUI";
-import { HumanMessage } from "@langchain/core/messages";
+import { HumanMessage, AIMessage as LangChainAIMessage } from "@langchain/core/messages";
 import { OC_HIDE_FROM_UI_KEY } from "@opencanvas/shared/constants";
 import { Button } from "../ui/button";
 import { WEB_SEARCH_RESULTS_QUERY_PARAM } from "@/constants";
 import { Globe } from "lucide-react";
 import { useQueryState } from "nuqs";
+import { DecisionButtons } from "./decision-buttons";
 
 interface AssistantMessageProps {
   runId: string | undefined;
@@ -100,15 +101,34 @@ const WebSearchMessageComponent = ({ message }: { message: MessageState }) => {
 
 const WebSearchMessage = React.memo(WebSearchMessageComponent);
 
+interface DynamicQuestionData {
+  question: {
+    question: string;
+    type: "single_choice" | "multiple_choice";
+    targetSection?: string;
+    rationale?: string;
+  };
+  options: Array<{
+    label: string;
+    value: string;
+    description: string;
+  }>;
+}
+
 export const AssistantMessage: FC<AssistantMessageProps> = ({
   runId,
   feedbackSubmitted,
   setFeedbackSubmitted,
 }) => {
   const message = useMessage();
+  const rawMessage = useMessage(getExternalStoreMessage<LangChainAIMessage>);
+  const aiMessage = Array.isArray(rawMessage) ? rawMessage[0] : rawMessage;
   const { isLast } = message;
   const isThinkingMessage = message.id.startsWith("thinking-");
   const isWebSearchMessage = message.id.startsWith("web-search-results-");
+
+  // Check for dynamicQuestion in additional_kwargs
+  const dynamicQuestion = aiMessage?.additional_kwargs?.dynamicQuestion as DynamicQuestionData | undefined;
 
   if (isThinkingMessage) {
     return <ThinkingAssistantMessage message={message} />;
@@ -126,6 +146,15 @@ export const AssistantMessage: FC<AssistantMessageProps> = ({
 
       <div className="text-foreground col-span-2 col-start-2 row-start-1 my-1.5 max-w-xl break-words leading-7">
         <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+
+        {/* Render decision buttons if dynamicQuestion exists and this is the last message */}
+        {isLast && dynamicQuestion && (
+          <DecisionButtons
+            dynamicQuestion={dynamicQuestion}
+            messageId={message.id}
+          />
+        )}
+
         {isLast && runId && (
           <MessagePrimitive.If lastOrHover assistant>
             <AssistantMessageBar
